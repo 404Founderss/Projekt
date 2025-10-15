@@ -1,4 +1,4 @@
-package org.founders404.backend;
+package com.founders404.backend;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

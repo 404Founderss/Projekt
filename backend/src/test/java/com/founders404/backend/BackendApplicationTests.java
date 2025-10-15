@@ -1,4 +1,4 @@
-package org.founders404.backend;
+package com.founders404.backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
