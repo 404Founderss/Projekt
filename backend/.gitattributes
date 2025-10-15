@@ -1,0 +1,13 @@
+# Line ending normalization
+* text=auto
+
+# Maven wrapper scripts - LF is critical for Unix systems
+*.sh text eol=lf
+mvnw text eol=lf
+
+# Windows specific files
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# XML files
+*.xml text eol=lf
