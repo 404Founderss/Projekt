@@ -1,0 +1,97 @@
+Sprint 1 – Alapok és projektindítás
+
+Cél: A projekt alapstruktúrájának és fő entitásainak létrehozása.
+
+Spring Boot projekt létrehozása és konfigurálása
+
+Teszt projekt létrehozása
+
+Product, Supplier, Category entity-k létrehozása
+
+
+
+Sprint 2 – CRUD műveletek és alap backend logika
+
+Cél: A fő entitásokhoz tartozó CRUD backend műveletek implementálása.
+
+Product CRUD backend (Service + Controller + DTO)
+
+Supplier & Category CRUD backend
+
+Sprint 2 testing, bug fixing, code review
+
+Sprint 2 retrospective és Sprint 3 planning
+
+
+
+Sprint 3 – Biztonság és felhasználókezelés
+
+Cél: Az authentication és authorization réteg kialakítása.
+
+JWT és Security alapok beállítása
+
+User entity és authentication implementálása
+
+Sprint 3 testing, bug fixing, code review
+
+Sprint 3 retrospective és Sprint 4 planning
+
+
+
+Sprint 4 – Inventory modul és REST API-k
+
+Cél: Inventory modul felépítése és REST végpontok létrehozása.
+
+InventoryPage (készletmozgás rögzítő form + history)
+
+Statistics backend (service + számítások)
+
+Prediction backend (service + mozgóátlag algoritmus)
+
+Statistics és Prediction REST API endpoint-ok
+
+Sprint 4 testing, bug fixing, code review
+
+Sprint 4 retrospective és Sprint 5 planning
+
+
+
+Sprint 5 – Warehouse modul és optimalizálás
+
+Cél: Raktár logika és teljesítményoptimalizálás bevezetése.
+
+Warehouse backend (entity, locations, assignment)
+
+Performance optimization és code cleanup
+
+Security audit és best practices
+
+Sprint 5 comprehensive testing és bug fixing
+
+Sprint 5 retrospective és Sprint 6 planning
+
+
+
+Sprint 6 – Dokumentáció és végső tesztek
+
+Cél: A rendszer dokumentálása és végső stabilizálása.
+
+Final testing és production readiness
+
+Documentation – README, API docs, User manual
+
+Sprint 6 retrospective és Sprint 7 planning
+
+
+
+Sprint 7 – Záró szakasz és átadás
+
+Cél: Projekt lezárása, prezentáció és tanulságok rögzítése.
+
+Végső prezentáció slide-ok és felkészülés
+
+Deployment konfiguráció (opcionális)
+
+Post-mortem retrospective és tanulságok
+
+Projekt záró cleanup és archíválás
