@@ -1,53 +1,45 @@
-// src/context/AuthContext.jsx
-import { createContext, useContext, useState } from 'react';
+// src/context/AuthContext.js
 
-const AuthContext = createContext(null);
+import React, { createContext, useContext, useState } from 'react';
+
+const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
 
-  const login = async (credentials) => {
+  const login = async (data) => {
     setLoading(true);
-    try {
-      // TODO: Cseréld le a saját API hívásodra
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Hibás felhasználónév vagy jelszó');
-      }
-      
-      const data = await response.json();
-      setUser(data.user);
-      localStorage.setItem('token', data.token);
-      return { success: true, user: data.user };
-    } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
+
+    const STATIC_USERNAME = 'admin';
+    const STATIC_PASSWORD = 'admin';
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    if (data.username === STATIC_USERNAME && data.password === STATIC_PASSWORD) {
+      setUser({ username: data.username });
       setLoading(false);
+      return { success: true };
+    } else {
+      setLoading(false);
+      return { success: false, error: 'Hibás felhasználónév vagy jelszó.' };
     }
   };
-
+  
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('token');
   };
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    login,
+    loading,
+    user,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 };
