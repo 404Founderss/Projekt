@@ -1,29 +1,25 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import { AuthProvider } from './context/AuthContext';
-import LoginPage from './pages/LoginPage';
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-  },
-});
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext'; // Importáljuk a providerünket
+import LoginPage from './pages/LoginPage';         // A te login oldalad
+import DashboardPage from './pages/DashboardPage'; // Az új dashboard oldal
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+    // 1. Az AuthProvider körbevesz mindent,
+    // így a LoginPage hozzáfér a useAuth() hook-hoz.
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Alapértelmezetten a Login oldalt mutatjuk */}
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* A sikeres login ide irányít át */}
+          <Route path="/dashboard" element={<DashboardPage />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
