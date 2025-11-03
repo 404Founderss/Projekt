@@ -41,50 +41,18 @@ const LoginPage = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          width: '300px',
-          height: '300px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: '50%',
-          top: '-100px',
-          right: '-100px',
-          animation: 'float 6s ease-in-out infinite',
-        },
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          width: '400px',
-          height: '400px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '50%',
-          bottom: '-150px',
-          left: '-150px',
-          animation: 'float 8s ease-in-out infinite',
-        },
-        '@keyframes float': {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-20px)' },
-        }
       }}
     >
       <Container maxWidth="sm">
         <Card
           sx={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 4,
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-            position: 'relative',
-            zIndex: 1,
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: 3,
+            boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
           }}
         >
           <CardContent sx={{ p: { xs: 3, sm: 5 } }}>
@@ -96,9 +64,7 @@ const LoginPage = () => {
                   height: 80,
                   margin: '0 auto',
                   mb: 2,
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  bgcolor: '#2e7d32',
                 }}
               >
                 <LoginIcon sx={{ fontSize: 40, color: '#fff' }} />
@@ -108,9 +74,8 @@ const LoginPage = () => {
                 component="h1"
                 gutterBottom
                 sx={{
-                  color: '#fff',
+                  color: '#2e7d32',
                   fontWeight: 700,
-                  textShadow: '0 2px 10px rgba(0,0,0,0.2)',
                 }}
               >
                 Raktárkezelés
@@ -118,8 +83,8 @@ const LoginPage = () => {
               <Typography
                 variant="body1"
                 sx={{
-                  color: 'rgba(255, 255, 255, 0.9)',
-                  fontWeight: 300,
+                  color: '#666',
+                  fontWeight: 400,
                 }}
               >
                 Jelentkezz be a céges adataiddal
@@ -130,16 +95,7 @@ const LoginPage = () => {
             {error && (
               <Alert
                 severity="error"
-                sx={{
-                  mb: 3,
-                  background: 'rgba(211, 47, 47, 0.15)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(211, 47, 47, 0.3)',
-                  color: '#fff',
-                  '& .MuiAlert-icon': {
-                    color: '#fff',
-                  },
-                }}
+                sx={{ mb: 3 }}
               >
                 {error}
               </Alert>
@@ -157,35 +113,6 @@ const LoginPage = () => {
                 error={!!errors.username}
                 helperText={errors.username?.message}
                 disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: 2,
-                    '& fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.5)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.8)',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: 'rgba(255, 255, 255, 0.9)',
-                  },
-                  '& .MuiInputBase-input': {
-                    color: '#fff',
-                  },
-                  '& .MuiFormHelperText-root': {
-                    color: '#ffcdd2',
-                    background: 'rgba(0,0,0,0.2)',
-                    margin: '4px 0 0 0',
-                    padding: '4px 8px',
-                    borderRadius: 1,
-                  },
-                }}
               />
 
               <TextField
@@ -205,41 +132,11 @@ const LoginPage = () => {
                       <IconButton
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
-                        sx={{ color: 'rgba(255, 255, 255, 0.8)' }}
                       >
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
                   ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: 2,
-                    '& fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.5)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'rgba(255, 255, 255, 0.8)',
-                    },
-                  },
-                  '& .MuiInputLabel-root': {
-                    color: 'rgba(255, 255, 255, 0.9)',
-                  },
-                  '& .MuiInputBase-input': {
-                    color: '#fff',
-                  },
-                  '& .MuiFormHelperText-root': {
-                    color: '#ffcdd2',
-                    background: 'rgba(0,0,0,0.2)',
-                    margin: '4px 0 0 0',
-                    padding: '4px 8px',
-                    borderRadius: 1,
-                  },
                 }}
               />
 
@@ -252,27 +149,9 @@ const LoginPage = () => {
                 sx={{
                   mt: 4,
                   py: 1.5,
-                  borderRadius: 2,
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  textTransform: 'none',
-                  boxShadow: '0 4px 15px 0 rgba(0, 0, 0, 0.2)',
-                  transition: 'all 0.3s ease',
+                  bgcolor: '#2e7d32',
                   '&:hover': {
-                    background: 'rgba(255, 255, 255, 0.3)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 6px 20px 0 rgba(0, 0, 0, 0.3)',
-                  },
-                  '&:active': {
-                    transform: 'translateY(0)',
-                  },
-                  '&.Mui-disabled': {
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    color: 'rgba(255, 255, 255, 0.5)',
+                    bgcolor: '#1b5e20',
                   },
                 }}
               >

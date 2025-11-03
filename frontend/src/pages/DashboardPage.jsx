@@ -1,4 +1,3 @@
-// src/pages/DashboardPage.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +17,9 @@ import {
   Divider,
   CssBaseline,
   Badge,
-  Paper
+  Paper,
+  useMediaQuery,
+  useTheme as useMuiTheme
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -27,7 +28,8 @@ import {
   AddBusiness as NewWarehouseIcon,
   BarChart as StatisticsIcon,
   Logout as LogoutIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  Menu as MenuIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
@@ -54,12 +56,26 @@ const theme = createTheme({
 const DashboardPage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const muiTheme = useMuiTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
   
   const [selectedPage, setSelectedPage] = useState('Dashboard');
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleMenuItemClick = (text) => {
+    setSelectedPage(text);
+    if (isMobile) {
+      setMobileOpen(false);
+    }
   };
 
   const menuItems = [
@@ -90,7 +106,7 @@ const DashboardPage = () => {
               component={RouterLink}
               to={item.path}
               selected={selectedPage === item.text}
-              onClick={() => setSelectedPage(item.text)}
+              onClick={() => handleMenuItemClick(item.text)}
               sx={{
                 color: 'secondary.main',
                 borderRadius: 2,
@@ -156,14 +172,38 @@ const DashboardPage = () => {
       <AppBar
         position="fixed"
         sx={{
-          width: `calc(100% - ${drawerWidth}px)`, 
-          ml: `${drawerWidth}px`, 
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
           backgroundColor: 'secondary.main',
           color: 'text.primary',
           boxShadow: '0 2px 4px 0 rgba(0,0,0,0.1)',
         }}
       >
         <Toolbar>
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+          
+          <Typography 
+            variant="h6" 
+            noWrap 
+            component="div"
+            sx={{ 
+              display: { xs: 'block', md: 'none' },
+              fontWeight: 600
+            }}
+          >
+            Dashboard
+          </Typography>
+          
           <Box sx={{ flexGrow: 1 }} />
           
           <IconButton
@@ -184,46 +224,82 @@ const DashboardPage = () => {
         </Toolbar>
       </AppBar>
 
-      <Drawer
-        variant="permanent"
-        anchor="left"
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-            backgroundColor: 'primary.main',
-            borderRight: 'none',
-          },
-        }}
+      <Box
+        component="nav"
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
       >
-        {drawerContent}
-      </Drawer>
+        {/* Mobile drawer */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // Better open performance on mobile
+          }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              backgroundColor: 'primary.main',
+              borderRight: 'none',
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+
+        {/* Desktop drawer */}
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              backgroundColor: 'primary.main',
+              borderRight: 'none',
+            },
+          }}
+          open
+        >
+          {drawerContent}
+        </Drawer>
+      </Box>
 
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           bgcolor: 'background.default',
-          p: 3,
-          width: `calc(100% - ${drawerWidth}px)`,
+          p: { xs: 2, sm: 3 },
+          width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
         }}
       >
         <Toolbar /> 
         
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
+        <Typography 
+          variant="h4" 
+          gutterBottom 
+          sx={{ 
+            fontWeight: 700,
+            fontSize: { xs: '1.75rem', sm: '2.125rem' }
+          }}
+        >
           Dashboard
         </Typography>
         
-        <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)' }}>
-          <Typography paragraph>
+        <Paper sx={{ 
+          p: { xs: 2, sm: 3 }, 
+          borderRadius: 3, 
+          boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)' 
+        }}>
+          <Typography paragraph sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
             Welcome to your warehouse management dashboard, <strong>{user ? user.username : 'User'}</strong>!
           </Typography>
-          <Typography paragraph>
+          <Typography paragraph sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
             From here you can get an overview of your inventory, manage warehouses, and view statistics.
           </Typography>
-          
         </Paper>
         
       </Box>
