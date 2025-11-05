@@ -17,10 +17,7 @@ function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/warehouses" element={<NewWarehousePageWithTheme />} />
             <Route path="/warehouses/new" element={<NewWarehousePageWithTheme />} />
-            <Route path="/profile" element={<NewWarehousePageWithTheme />} />
-            <Route path="statistics" element={<NewWarehousePageWithTheme />} />
           </Route>
         </Routes>
       </BrowserRouter>
