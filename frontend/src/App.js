@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext'; // Importáljuk a providerünket
 import LoginPage from './pages/LoginPage';         // A te login oldalad
 import DashboardPage from './pages/DashboardPage'; // Az új dashboard oldal
+import NewWarehousePageWithTheme from './pages/NewWarehousePage';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
 
           {/* A sikeres login ide irányít át */}
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/warehouses/new" element={<NewWarehousePageWithTheme />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
