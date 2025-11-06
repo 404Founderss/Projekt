@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import NewWarehousePageWithTheme from './pages/NewWarehousePage';
+import ProfilePageWithTheme from './pages/ProfilePage';
 
 import ProtectedRoute from './components/ProtectedRoute'; 
 
@@ -17,6 +18,7 @@ function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<ProfilePageWithTheme />} />
             <Route path="/warehouses/new" element={<NewWarehousePageWithTheme />} />
           </Route>
         </Routes>
