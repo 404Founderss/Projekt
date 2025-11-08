@@ -144,6 +144,10 @@ const ProfilePage = () => {
     { text: 'Statistics', icon: <StatisticsIcon />, path: '/statistics' },
   ];
 
+  // Password validation helpers
+  const passwordsMatch = formData.newPassword === formData.confirmPassword;
+  const showPasswordError = formData.newPassword !== '' && formData.confirmPassword !== '' && !passwordsMatch;
+
   const drawerContent = (
     <>
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', mt: 2, mb: 1 }}>
@@ -404,117 +408,122 @@ const ProfilePage = () => {
           </Box>
         </Paper>
 
-        <Paper sx={{ 
-          p: { xs: 2, sm: 3 }, 
-          borderRadius: 3, 
-          boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)' 
-        }}>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-            Személyes adatok
-          </Typography>
+        <form onSubmit={handleProfileUpdate}>
+          <Grid container spacing={3}>
+            {/* Személyes adatok - bal oldal */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ 
+                p: { xs: 2, sm: 3 }, 
+                borderRadius: 3, 
+                boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
+                height: '100%'
+              }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                  Személyes adatok
+                </Typography>
 
-          <form onSubmit={handleProfileUpdate}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Felhasználónév"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  variant="outlined"
-                />
-              </Grid>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <TextField
+                    fullWidth
+                    label="Felhasználónév"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                  />
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Email cím"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  variant="outlined"
-                />
-              </Grid>
+                  <TextField
+                    fullWidth
+                    label="Email cím"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                  />
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Telefonszám"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  variant="outlined"
-                />
-              </Grid>
+                  <TextField
+                    fullWidth
+                    label="Telefonszám"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                  />
+                </Box>
+              </Paper>
+            </Grid>
 
-              <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            {/* Jelszó módosítása - jobb oldal */}
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ 
+                p: { xs: 2, sm: 3 }, 
+                borderRadius: 3, 
+                boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
+                height: '100%'
+              }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
                   Jelszó módosítása
                 </Typography>
-              </Grid>
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Jelenlegi jelszó"
-                  name="currentPassword"
-                  type="password"
-                  value={formData.currentPassword}
-                  onChange={handleInputChange}
-                  variant="outlined"
-                />
-              </Grid>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <TextField
+                    fullWidth
+                    label="Jelenlegi jelszó"
+                    name="currentPassword"
+                    type="password"
+                    value={formData.currentPassword}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                  />
 
-              <Grid item xs={12} sm={6}></Grid>
+                  <TextField
+                    fullWidth
+                    label="Új jelszó"
+                    name="newPassword"
+                    type="password"
+                    value={formData.newPassword}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    error={showPasswordError}
+                  />
 
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Új jelszó"
-                  name="newPassword"
-                  type="password"
-                  value={formData.newPassword}
-                  onChange={handleInputChange}
-                  variant="outlined"
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Új jelszó megerősítése"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  variant="outlined"
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  size="large"
-                  startIcon={<SaveIcon />}
-                  sx={{
-                    bgcolor: 'primary.main',
-                    px: 4,
-                    py: 1.5,
-                    '&:hover': {
-                      bgcolor: 'primary.dark',
-                    }
-                  }}
-                >
-                  Módosítások mentése
-                </Button>
-              </Grid>
+                  <TextField
+                    fullWidth
+                    label="Új jelszó megerősítése"
+                    name="confirmPassword"
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    variant="outlined"
+                    error={showPasswordError}
+                    helperText={showPasswordError ? 'A jelszavak nem egyeznek' : ''}
+                  />
+                </Box>
+              </Paper>
             </Grid>
-          </form>
-        </Paper>
+
+            {/* Mentés gomb */}
+            <Grid item xs={12}>
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                startIcon={<SaveIcon />}
+                sx={{
+                  bgcolor: 'primary.main',
+                  px: 4,
+                  py: 1.5,
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  }
+                }}
+              >
+                Módosítások mentése
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
         
       </Box>
     </Box>
