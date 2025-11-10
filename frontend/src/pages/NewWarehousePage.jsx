@@ -410,7 +410,7 @@ const NewWarehousePage = () => {
                   fullWidth={false}
                   sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
                 >
-                  Clear Canvas
+                  Clear Layout
                 </Button>
               </Box>
             </Paper>

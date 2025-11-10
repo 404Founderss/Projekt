@@ -7,6 +7,7 @@ import NewWarehousePageWithTheme from './pages/NewWarehousePage';
 import ProfilePageWithTheme from './pages/ProfilePage';
 import WarehousesPage from './pages/WarehousesPage';
 import ProtectedRoute from './components/ProtectedRoute'; 
+import StatisticsPage from './pages/StatisticsPage';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
             <Route path="/profile" element={<ProfilePageWithTheme />} />
             <Route path="/warehouses" element={<WarehousesPage />} />
             <Route path="/warehouses/new" element={<NewWarehousePageWithTheme />} />
+            <Route path="/statistics" element={<StatisticsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
