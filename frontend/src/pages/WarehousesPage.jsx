@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -29,7 +29,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button
+  Button,
+  TextField,
+  Popover,
+  Stack
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -42,7 +45,9 @@ import {
   Menu as MenuIcon,
   Inventory as InventoryIcon,
   TrendingUp as TrendingUpIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
@@ -66,6 +71,25 @@ const theme = createTheme({
   },
 });
 
+// Sample product data
+const generateProducts = (shelfId, count) => {
+  const categories = ['Electronics', 'Textiles', 'Food', 'Tools', 'Furniture', 'Books', 'Home & Garden'];
+  const products = [];
+  for (let i = 0; i < count; i++) {
+    const category = categories[Math.floor(Math.random() * categories.length)];
+    products.push({
+      id: `${shelfId}-P${i + 1}`,
+      name: `${category} Product ${i + 1}`,
+      category,
+      sku: `SKU-${shelfId}-${String(i + 1).padStart(4, '0')}`,
+      quantity: Math.floor(Math.random() * 100) + 1,
+      unit: ['pcs', 'boxes', 'kg', 'L'][Math.floor(Math.random() * 4)],
+      status: Math.random() > 0.1 ? 'Available' : 'Reserved'
+    });
+  }
+  return products;
+};
+
 // Sample warehouse data with shelf information
 const warehousesData = [
   {
@@ -75,18 +99,18 @@ const warehousesData = [
     currentStock: 7500,
     lastUpdate: '2025-11-08 14:30',
     shelves: [
-      { id: 'A1', occupied: true, items: 250 },
-      { id: 'A2', occupied: true, items: 180 },
-      { id: 'A3', occupied: false, items: 0 },
-      { id: 'B1', occupied: true, items: 320 },
-      { id: 'B2', occupied: true, items: 290 },
-      { id: 'B3', occupied: true, items: 150 },
-      { id: 'C1', occupied: true, items: 410 },
-      { id: 'C2', occupied: false, items: 0 },
-      { id: 'C3', occupied: true, items: 200 },
-      { id: 'D1', occupied: true, items: 380 },
-      { id: 'D2', occupied: true, items: 270 },
-      { id: 'D3', occupied: true, items: 340 }
+      { id: 'A1', occupied: true, items: 250, products: generateProducts('A1', 25) },
+      { id: 'A2', occupied: true, items: 180, products: generateProducts('A2', 18) },
+      { id: 'A3', occupied: false, items: 0, products: [] },
+      { id: 'B1', occupied: true, items: 320, products: generateProducts('B1', 32) },
+      { id: 'B2', occupied: true, items: 290, products: generateProducts('B2', 29) },
+      { id: 'B3', occupied: true, items: 150, products: generateProducts('B3', 15) },
+      { id: 'C1', occupied: true, items: 410, products: generateProducts('C1', 41) },
+      { id: 'C2', occupied: false, items: 0, products: [] },
+      { id: 'C3', occupied: true, items: 200, products: generateProducts('C3', 20) },
+      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
+      { id: 'D2', occupied: true, items: 270, products: generateProducts('D2', 27) },
+      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
     ]
   },
   {
@@ -96,18 +120,18 @@ const warehousesData = [
     currentStock: 12000,
     lastUpdate: '2025-11-08 13:15',
     shelves: [
-      { id: 'A1', occupied: true, items: 450 },
-      { id: 'A2', occupied: true, items: 380 },
-      { id: 'A3', occupied: true, items: 420 },
-      { id: 'B1', occupied: true, items: 520 },
-      { id: 'B2', occupied: true, items: 490 },
-      { id: 'B3', occupied: true, items: 350 },
-      { id: 'C1', occupied: true, items: 610 },
-      { id: 'C2', occupied: true, items: 580 },
-      { id: 'C3', occupied: true, items: 400 },
-      { id: 'D1', occupied: true, items: 480 },
-      { id: 'D2', occupied: true, items: 470 },
-      { id: 'D3', occupied: true, items: 440 }
+      { id: 'A1', occupied: true, items: 450, products: generateProducts('A1', 45) },
+      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
+      { id: 'A3', occupied: true, items: 420, products: generateProducts('A3', 42) },
+      { id: 'B1', occupied: true, items: 520, products: generateProducts('B1', 52) },
+      { id: 'B2', occupied: true, items: 490, products: generateProducts('B2', 49) },
+      { id: 'B3', occupied: true, items: 350, products: generateProducts('B3', 35) },
+      { id: 'C1', occupied: true, items: 610, products: generateProducts('C1', 61) },
+      { id: 'C2', occupied: true, items: 580, products: generateProducts('C2', 58) },
+      { id: 'C3', occupied: true, items: 400, products: generateProducts('C3', 40) },
+      { id: 'D1', occupied: true, items: 480, products: generateProducts('D1', 48) },
+      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
+      { id: 'D3', occupied: true, items: 440, products: generateProducts('D3', 44) }
     ]
   },
   {
@@ -117,18 +141,18 @@ const warehousesData = [
     currentStock: 3200,
     lastUpdate: '2025-11-08 12:45',
     shelves: [
-      { id: 'A1', occupied: true, items: 180 },
-      { id: 'A2', occupied: false, items: 0 },
-      { id: 'A3', occupied: false, items: 0 },
-      { id: 'B1', occupied: true, items: 220 },
-      { id: 'B2', occupied: true, items: 190 },
-      { id: 'B3', occupied: false, items: 0 },
-      { id: 'C1', occupied: true, items: 310 },
-      { id: 'C2', occupied: false, items: 0 },
-      { id: 'C3', occupied: false, items: 0 },
-      { id: 'D1', occupied: true, items: 280 },
-      { id: 'D2', occupied: true, items: 170 },
-      { id: 'D3', occupied: false, items: 0 }
+      { id: 'A1', occupied: true, items: 180, products: generateProducts('A1', 18) },
+      { id: 'A2', occupied: false, items: 0, products: [] },
+      { id: 'A3', occupied: false, items: 0, products: [] },
+      { id: 'B1', occupied: true, items: 220, products: generateProducts('B1', 22) },
+      { id: 'B2', occupied: true, items: 190, products: generateProducts('B2', 19) },
+      { id: 'B3', occupied: false, items: 0, products: [] },
+      { id: 'C1', occupied: true, items: 310, products: generateProducts('C1', 31) },
+      { id: 'C2', occupied: false, items: 0, products: [] },
+      { id: 'C3', occupied: false, items: 0, products: [] },
+      { id: 'D1', occupied: true, items: 280, products: generateProducts('D1', 28) },
+      { id: 'D2', occupied: true, items: 170, products: generateProducts('D2', 17) },
+      { id: 'D3', occupied: false, items: 0, products: [] }
     ]
   },
   {
@@ -138,317 +162,597 @@ const warehousesData = [
     currentStock: 9600,
     lastUpdate: '2025-11-08 15:00',
     shelves: [
-      { id: 'A1', occupied: true, items: 350 },
-      { id: 'A2', occupied: true, items: 380 },
-      { id: 'A3', occupied: true, items: 320 },
-      { id: 'B1', occupied: true, items: 420 },
-      { id: 'B2', occupied: true, items: 390 },
-      { id: 'B3', occupied: true, items: 450 },
-      { id: 'C1', occupied: true, items: 510 },
-      { id: 'C2', occupied: true, items: 480 },
-      { id: 'C3', occupied: true, items: 300 },
-      { id: 'D1', occupied: true, items: 380 },
-      { id: 'D2', occupied: true, items: 470 },
-      { id: 'D3', occupied: true, items: 340 }
+      { id: 'A1', occupied: true, items: 350, products: generateProducts('A1', 35) },
+      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
+      { id: 'A3', occupied: true, items: 320, products: generateProducts('A3', 32) },
+      { id: 'B1', occupied: true, items: 420, products: generateProducts('B1', 42) },
+      { id: 'B2', occupied: true, items: 390, products: generateProducts('B2', 39) },
+      { id: 'B3', occupied: true, items: 450, products: generateProducts('B3', 45) },
+      { id: 'C1', occupied: true, items: 510, products: generateProducts('C1', 51) },
+      { id: 'C2', occupied: true, items: 480, products: generateProducts('C2', 48) },
+      { id: 'C3', occupied: true, items: 300, products: generateProducts('C3', 30) },
+      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
+      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
+      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
     ]
   }
 ];
 
+// Shelf Items Popover Component
+const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  const filteredProducts = useMemo(() => {
+    if (!shelf) return [];
+    return shelf.products.filter((product) => {
+      const matchesSearch = 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
+      const matchesStatus = filterStatus === 'all' || product.status === filterStatus;
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [shelf, searchTerm, filterCategory, filterStatus]);
+
+  const categories = useMemo(() => {
+    if (!shelf) return [];
+    const uniqueCategories = new Set(shelf.products.map(p => p.category));
+    return Array.from(uniqueCategories);
+  }, [shelf]);
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setFilterCategory('all');
+    setFilterStatus('all');
+  };
+
+  if (!shelf) return null;
+
+  return (
+    <Popover
+      open={open}
+      anchorEl={anchorEl}
+      onClose={onClose}
+      anchorOrigin={{
+        vertical: 'top',
+        horizontal: 'right',
+      }}
+      transformOrigin={{
+        vertical: 'top',
+        horizontal: 'left',
+      }}
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          maxHeight: 600,
+          width: 500,
+          boxShadow: '0 8px 32px 0 rgba(0,0,0,0.15)',
+        }
+      }}
+    >
+      <Box sx={{ p: 2.5, bgcolor: 'primary.main', color: 'white' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Shelf {shelf.id}
+            </Typography>
+            <Typography variant="caption">
+              {warehouseName}
+            </Typography>
+          </Box>
+          <IconButton 
+            size="small" 
+            onClick={onClose}
+            sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+        <Chip 
+          label={`${shelf.products.length} Products`}
+          size="small"
+          sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600 }}
+        />
+      </Box>
+
+      <Divider />
+
+      <Box sx={{ p: 2, maxHeight: 500, overflowY: 'auto' }}>
+        {/* Search and Filter Section */}
+        <Stack spacing={2} sx={{ mb: 2 }}>
+          {/* Search */}
+          <TextField
+            placeholder="Search product or SKU..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="small"
+            InputProps={{
+              startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+            }}
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1,
+              }
+            }}
+          />
+
+          {/* Filter Row */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 1 }}>
+            {/* Category Filter */}
+            <TextField
+              select
+              label="Category"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              size="small"
+              SelectProps={{
+                native: true,
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                }
+              }}
+            >
+              <option value="all">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </TextField>
+
+            {/* Status Filter */}
+            <TextField
+              select
+              label="Status"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              size="small"
+              SelectProps={{
+                native: true,
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                }
+              }}
+            >
+              <option value="all">All Status</option>
+              <option value="Available">Available</option>
+              <option value="Reserved">Reserved</option>
+            </TextField>
+
+            {/* Reset Button */}
+            <IconButton
+              onClick={handleResetFilters}
+              size="small"
+              title="Reset filters"
+              sx={{
+                bgcolor: 'action.hover',
+                '&:hover': { bgcolor: 'action.selected' }
+              }}
+            >
+              <FilterListIcon fontSize="small" />
+            </IconButton>
+          </Box>
+
+          {/* Results Summary */}
+          <Typography variant="caption" color="text.secondary">
+            Showing {filteredProducts.length} of {shelf.products.length} products
+          </Typography>
+        </Stack>
+
+        {/* Products List */}
+        {filteredProducts.length > 0 ? (
+          <Stack spacing={1}>
+            {filteredProducts.map((product) => (
+              <Paper
+                key={product.id}
+                sx={{
+                  p: 1.5,
+                  bgcolor: 'background.default',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    borderColor: 'primary.main',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.25 }}>
+                      {product.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {product.sku}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={product.status}
+                    size="small"
+                    color={product.status === 'Available' ? 'success' : 'warning'}
+                    variant="outlined"
+                    sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
+                      Category
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {product.category}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
+                      Quantity
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: 'primary.main' }}>
+                      {product.quantity} {product.unit}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+            ))}
+          </Stack>
+        ) : (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <InventoryIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+            <Typography color="text.secondary">
+              {shelf.products.length === 0 ? 'No products on this shelf' : 'No matching products found'}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+    </Popover>
+  );
+};
+
 // Warehouse Visual Modal Component
 const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
+  const [selectedShelfAnchor, setSelectedShelfAnchor] = useState(null);
+  const [selectedShelf, setSelectedShelf] = useState(null);
+
+  const handleShelfClick = (event, shelf) => {
+    setSelectedShelfAnchor(event.currentTarget);
+    setSelectedShelf(shelf);
+  };
+
+  const handleCloseShelfPopover = () => {
+    setSelectedShelfAnchor(null);
+    setSelectedShelf(null);
+  };
+
   if (!warehouse) return null;
 
   const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
   const occupiedShelves = warehouse.shelves.filter(shelf => shelf.occupied).length;
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          minHeight: '600px'
-        }
-      }}
-    >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        pb: 1
-      }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            {warehouse.name}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Visual Layout & Storage Details
-          </Typography>
-        </Box>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      
-      <DialogContent>
-        {/* Stats Summary */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6} sm={3}>
-            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                {warehouse.shelves.length}
-              </Typography>
-              <Typography variant="caption">Total Shelves</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: green[600], color: 'white' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                {occupiedShelves}
-              </Typography>
-              <Typography variant="caption">Occupied</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.400', color: 'white' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                {warehouse.shelves.length - occupiedShelves}
-              </Typography>
-              <Typography variant="caption">Empty</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.main', color: 'white' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                {utilization}%
-              </Typography>
-              <Typography variant="caption">Utilization</Typography>
-            </Paper>
-          </Grid>
-        </Grid>
-
-        {/* Warehouse Layout */}
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            p: 3, 
-            bgcolor: '#f5f5f5',
-            border: '2px dashed #ccc',
-            borderRadius: 2
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, textAlign: 'center' }}>
-            Warehouse Floor Plan
-          </Typography>
-          
-          {/* Entrance */}
-          <Box sx={{ 
-            textAlign: 'center', 
-            mb: 2,
-            pb: 1,
-            borderBottom: '3px solid #666'
-          }}>
-            <Typography variant="caption" sx={{ 
-              bgcolor: 'warning.main', 
-              color: 'white',
-              px: 2,
-              py: 0.5,
-              borderRadius: 1,
-              fontWeight: 600
-            }}>
-              ENTRANCE
+    <>
+      <Dialog 
+        open={open} 
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            minHeight: '600px'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          pb: 1
+        }}>
+          <Box>
+            <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              {warehouse.name}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Visual Layout & Storage Details
             </Typography>
           </Box>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        
+        <DialogContent>
+          {/* Stats Summary */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
+                <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                  {warehouse.shelves.length}
+                </Typography>
+                <Typography variant="caption">Total Shelves</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: 2, textAlign: 'center', bgcolor: green[600], color: 'white' }}>
+                <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                  {occupiedShelves}
+                </Typography>
+                <Typography variant="caption">Occupied</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.400', color: 'white' }}>
+                <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                  {warehouse.shelves.length - occupiedShelves}
+                </Typography>
+                <Typography variant="caption">Empty</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.main', color: 'white' }}>
+                <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                  {utilization}%
+                </Typography>
+                <Typography variant="caption">Utilization</Typography>
+              </Paper>
+            </Grid>
+          </Grid>
 
-          {/* Shelves Grid */}
-          <Grid container spacing={2}>
-            {/* Left Aisle */}
-            <Grid item xs={5.5}>
-              <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
-                Aisle A-B
+          {/* Warehouse Layout */}
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              p: 3, 
+              bgcolor: '#f5f5f5',
+              border: '2px dashed #ccc',
+              borderRadius: 2
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, textAlign: 'center' }}>
+              Warehouse Floor Plan
+            </Typography>
+            
+            <Typography variant="caption" sx={{ display: 'block', mb: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
+              Click on any shelf to view its products
+            </Typography>
+            
+            {/* Entrance */}
+            <Box sx={{ 
+              textAlign: 'center', 
+              mb: 2,
+              pb: 1,
+              borderBottom: '3px solid #666'
+            }}>
+              <Typography variant="caption" sx={{ 
+                bgcolor: 'warning.main', 
+                color: 'white',
+                px: 2,
+                py: 0.5,
+                borderRadius: 1,
+                fontWeight: 600
+              }}>
+                ENTRANCE
               </Typography>
-              <Grid container spacing={1}>
-                {warehouse.shelves.slice(0, 6).map((shelf) => (
-                  <Grid item xs={4} key={shelf.id}>
-                    <Paper
-                      elevation={shelf.occupied ? 3 : 0}
-                      sx={{
-                        p: 1.5,
-                        textAlign: 'center',
-                        bgcolor: shelf.occupied ? green[700] : 'grey.300',
-                        color: shelf.occupied ? 'white' : 'grey.600',
-                        borderRadius: 1,
-                        border: shelf.occupied ? 'none' : '2px dashed grey.400',
-                        minHeight: '80px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        transition: 'all 0.3s',
-                        '&:hover': {
-                          transform: 'scale(1.05)',
-                          boxShadow: 3
-                        }
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                        {shelf.id}
-                      </Typography>
-                      {shelf.occupied ? (
-                        <>
-                          <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                            {shelf.items} items
-                          </Typography>
-                        </>
-                      ) : (
-                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                          Empty
+            </Box>
+
+            {/* Shelves Grid */}
+            <Grid container spacing={2}>
+              {/* Left Aisle */}
+              <Grid item xs={5.5}>
+                <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+                  Aisle A-B
+                </Typography>
+                <Grid container spacing={1}>
+                  {warehouse.shelves.slice(0, 6).map((shelf) => (
+                    <Grid item xs={4} key={shelf.id}>
+                      <Paper
+                        onClick={(e) => handleShelfClick(e, shelf)}
+                        elevation={shelf.occupied ? 3 : 0}
+                        sx={{
+                          p: 1.5,
+                          textAlign: 'center',
+                          bgcolor: shelf.occupied ? green[700] : 'grey.300',
+                          color: shelf.occupied ? 'white' : 'grey.600',
+                          borderRadius: 1,
+                          border: shelf.occupied ? 'none' : '2px dashed grey.400',
+                          minHeight: '80px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          transition: 'all 0.3s',
+                          cursor: shelf.occupied ? 'pointer' : 'default',
+                          '&:hover': shelf.occupied ? {
+                            transform: 'scale(1.08)',
+                            boxShadow: 4,
+                            bgcolor: green[600],
+                          } : {
+                            transform: 'scale(1.05)',
+                            boxShadow: 3
+                          }
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                          {shelf.id}
                         </Typography>
-                      )}
-                    </Paper>
-                  </Grid>
-                ))}
+                        {shelf.occupied ? (
+                          <>
+                            <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
+                            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                              {shelf.items} items
+                            </Typography>
+                          </>
+                        ) : (
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                            Empty
+                          </Typography>
+                        )}
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Grid>
+
+              {/* Center Aisle */}
+              <Grid item xs={1} sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                borderLeft: '2px dashed #999',
+                borderRight: '2px dashed #999'
+              }}>
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    writingMode: 'vertical-rl',
+                    transform: 'rotate(180deg)',
+                    fontWeight: 600,
+                    color: 'text.secondary'
+                  }}
+                >
+                  MAIN CORRIDOR
+                </Typography>
+              </Grid>
+
+              {/* Right Aisle */}
+              <Grid item xs={5.5}>
+                <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+                  Aisle C-D
+                </Typography>
+                <Grid container spacing={1}>
+                  {warehouse.shelves.slice(6, 12).map((shelf) => (
+                    <Grid item xs={4} key={shelf.id}>
+                      <Paper
+                        onClick={(e) => handleShelfClick(e, shelf)}
+                        elevation={shelf.occupied ? 3 : 0}
+                        sx={{
+                          p: 1.5,
+                          textAlign: 'center',
+                          bgcolor: shelf.occupied ? green[700] : 'grey.300',
+                          color: shelf.occupied ? 'white' : 'grey.600',
+                          borderRadius: 1,
+                          border: shelf.occupied ? 'none' : '2px dashed grey.400',
+                          minHeight: '80px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'center',
+                          transition: 'all 0.3s',
+                          cursor: shelf.occupied ? 'pointer' : 'default',
+                          '&:hover': shelf.occupied ? {
+                            transform: 'scale(1.08)',
+                            boxShadow: 4,
+                            bgcolor: green[600],
+                          } : {
+                            transform: 'scale(1.05)',
+                            boxShadow: 3
+                          }
+                        }}
+                      >
+                        <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                          {shelf.id}
+                        </Typography>
+                        {shelf.occupied ? (
+                          <>
+                            <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
+                            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                              {shelf.items} items
+                            </Typography>
+                          </>
+                        ) : (
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                            Empty
+                          </Typography>
+                        )}
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
               </Grid>
             </Grid>
 
-            {/* Center Aisle */}
-            <Grid item xs={1} sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              borderLeft: '2px dashed #999',
-              borderRight: '2px dashed #999'
+            {/* Exit */}
+            <Box sx={{ 
+              textAlign: 'center', 
+              mt: 2,
+              pt: 1,
+              borderTop: '3px solid #666'
             }}>
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  writingMode: 'vertical-rl',
-                  transform: 'rotate(180deg)',
-                  fontWeight: 600,
-                  color: 'text.secondary'
-                }}
-              >
-                MAIN CORRIDOR
+              <Typography variant="caption" sx={{ 
+                bgcolor: 'error.main', 
+                color: 'white',
+                px: 2,
+                py: 0.5,
+                borderRadius: 1,
+                fontWeight: 600
+              }}>
+                EXIT / LOADING DOCK
               </Typography>
-            </Grid>
+            </Box>
 
-            {/* Right Aisle */}
-            <Grid item xs={5.5}>
-              <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
-                Aisle C-D
-              </Typography>
-              <Grid container spacing={1}>
-                {warehouse.shelves.slice(6, 12).map((shelf) => (
-                  <Grid item xs={4} key={shelf.id}>
-                    <Paper
-                      elevation={shelf.occupied ? 3 : 0}
-                      sx={{
-                        p: 1.5,
-                        textAlign: 'center',
-                        bgcolor: shelf.occupied ? green[700] : 'grey.300',
-                        color: shelf.occupied ? 'white' : 'grey.600',
-                        borderRadius: 1,
-                        border: shelf.occupied ? 'none' : '2px dashed grey.400',
-                        minHeight: '80px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        transition: 'all 0.3s',
-                        '&:hover': {
-                          transform: 'scale(1.05)',
-                          boxShadow: 3
-                        }
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                        {shelf.id}
-                      </Typography>
-                      {shelf.occupied ? (
-                        <>
-                          <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                            {shelf.items} items
-                          </Typography>
-                        </>
-                      ) : (
-                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                          Empty
-                        </Typography>
-                      )}
-                    </Paper>
-                  </Grid>
-                ))}
-              </Grid>
-            </Grid>
-          </Grid>
+            {/* Legend */}
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ 
+                  width: 20, 
+                  height: 20, 
+                  bgcolor: green[700], 
+                  borderRadius: 0.5,
+                  mr: 1 
+                }} />
+                <Typography variant="caption">Occupied Shelf (Clickable)</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ 
+                  width: 20, 
+                  height: 20, 
+                  bgcolor: 'grey.300',
+                  border: '2px dashed',
+                  borderColor: 'grey.400',
+                  borderRadius: 0.5,
+                  mr: 1 
+                }} />
+                <Typography variant="caption">Empty Shelf</Typography>
+              </Box>
+            </Box>
+          </Paper>
 
-          {/* Exit */}
-          <Box sx={{ 
-            textAlign: 'center', 
-            mt: 2,
-            pt: 1,
-            borderTop: '3px solid #666'
-          }}>
-            <Typography variant="caption" sx={{ 
-              bgcolor: 'error.main', 
-              color: 'white',
-              px: 2,
-              py: 0.5,
-              borderRadius: 1,
-              fontWeight: 600
-            }}>
-              EXIT / LOADING DOCK
+          {/* Additional Info */}
+          <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Last Updated: {warehouse.lastUpdate}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Total Capacity: {warehouse.capacity.toLocaleString()} units | 
+              Current Stock: {warehouse.currentStock.toLocaleString()} units
             </Typography>
           </Box>
+        </DialogContent>
 
-          {/* Legend */}
-          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ 
-                width: 20, 
-                height: 20, 
-                bgcolor: green[700], 
-                borderRadius: 0.5,
-                mr: 1 
-              }} />
-              <Typography variant="caption">Occupied Shelf</Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box sx={{ 
-                width: 20, 
-                height: 20, 
-                bgcolor: 'grey.300',
-                border: '2px dashed',
-                borderColor: 'grey.400',
-                borderRadius: 0.5,
-                mr: 1 
-              }} />
-              <Typography variant="caption">Empty Shelf</Typography>
-            </Box>
-          </Box>
-        </Paper>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={onClose} variant="contained" color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        {/* Additional Info */}
-        <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 2 }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-            Last Updated: {warehouse.lastUpdate}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Total Capacity: {warehouse.capacity.toLocaleString()} units | 
-            Current Stock: {warehouse.currentStock.toLocaleString()} units
-          </Typography>
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} variant="contained" color="primary">
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
+      {/* Shelf Items Popover */}
+      <ShelfItemsPopover
+        open={Boolean(selectedShelfAnchor)}
+        anchorEl={selectedShelfAnchor}
+        shelf={selectedShelf}
+        warehouseName={warehouse?.name}
+        onClose={handleCloseShelfPopover}
+      />
+    </>
   );
 };
 
