@@ -23,7 +23,10 @@ import {
   TextField,
   Button,
   Grid,
-  Alert
+  Alert,
+  Menu,
+  MenuItem,
+  Chip
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -35,7 +38,10 @@ import {
   Notifications as NotificationsIcon,
   Menu as MenuIcon,
   PhotoCamera as PhotoCameraIcon,
-  Save as SaveIcon
+  Save as SaveIcon,
+  Info as InfoIcon,
+  Warning as WarningIcon,
+  CheckCircle as SuccessIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
@@ -59,6 +65,218 @@ const theme = createTheme({
   },
 });
 
+// Sample notifications data
+const sampleNotifications = [
+  {
+    id: 1,
+    type: 'success',
+    title: 'Shipment Delivered',
+    message: 'Order #12345 has been successfully delivered to warehouse A',
+    timestamp: '5 minutes ago',
+    read: false
+  },
+  {
+    id: 2,
+    type: 'warning',
+    title: 'Low Stock Alert',
+    message: 'Product SKU-001 in warehouse B is running low on stock',
+    timestamp: '1 hour ago',
+    read: false
+  },
+  {
+    id: 3,
+    type: 'info',
+    title: 'Warehouse Maintenance',
+    message: 'Scheduled maintenance for warehouse C on Nov 15, 2025',
+    timestamp: '2 hours ago',
+    read: true
+  },
+  {
+    id: 4,
+    type: 'warning',
+    title: 'Inventory Discrepancy',
+    message: 'Count mismatch detected in warehouse D - aisle B',
+    timestamp: '1 day ago',
+    read: true
+  },
+  {
+    id: 5,
+    type: 'success',
+    title: 'System Update Complete',
+    message: 'Warehouse management system updated to version 2.5.1',
+    timestamp: '3 days ago',
+    read: true
+  }
+];
+
+// Notification Menu Component
+const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'success':
+        return <SuccessIcon sx={{ color: 'success.main', fontSize: 24 }} />;
+      case 'warning':
+        return <WarningIcon sx={{ color: 'warning.main', fontSize: 24 }} />;
+      case 'info':
+        return <InfoIcon sx={{ color: 'info.main', fontSize: 24 }} />;
+      default:
+        return <InfoIcon sx={{ color: 'info.main', fontSize: 24 }} />;
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'success':
+        return '#e8f5e9';
+      case 'warning':
+        return '#fff3e0';
+      case 'info':
+        return '#e3f2fd';
+      default:
+        return '#f5f5f5';
+    }
+  };
+
+  return (
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      onClose={onClose}
+      anchorOrigin={{
+        vertical: 'bottom',
+        horizontal: 'right',
+      }}
+      transformOrigin={{
+        vertical: 'top',
+        horizontal: 'right',
+      }}
+      PaperProps={{
+        sx: {
+          width: 420,
+          maxHeight: 600,
+          borderRadius: 2,
+          boxShadow: '0 8px 32px 0 rgba(0,0,0,0.15)',
+        }
+      }}
+    >
+      {/* Header */}
+      <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0', bgcolor: '#fafafa' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Notifications
+          </Typography>
+          <Chip 
+            label={unreadCount} 
+            size="small" 
+            color="error"
+            sx={{ fontWeight: 700 }}
+          />
+        </Box>
+      </Box>
+
+      {/* Notifications List */}
+      <Box sx={{ maxHeight: 450, overflowY: 'auto' }}>
+        {notifications.length > 0 ? (
+          notifications.map((notification) => (
+            <MenuItem
+              key={notification.id}
+              onClick={onClose}
+              sx={{
+                p: 2,
+                borderBottom: '1px solid #f0f0f0',
+                bgcolor: notification.read ? '#fafafa' : getNotificationColor(notification.type),
+                '&:hover': {
+                  bgcolor: notification.read ? '#f5f5f5' : getNotificationColor(notification.type),
+                },
+                alignItems: 'flex-start',
+                minHeight: 'auto',
+                display: 'flex',
+                gap: 2
+              }}
+            >
+              <Box sx={{ flexShrink: 0, mt: 0.5 }}>
+                {getNotificationIcon(notification.type)}
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: notification.read ? 500 : 700,
+                      color: '#000',
+                    }}
+                  >
+                    {notification.title}
+                  </Typography>
+                  {!notification.read && (
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        bgcolor: 'error.main',
+                        flexShrink: 0,
+                        ml: 1,
+                        mt: 1
+                      }}
+                    />
+                  )}
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: '#666',
+                    display: 'block',
+                    mb: 0.5,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {notification.message}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: '#999',
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  {notification.timestamp}
+                </Typography>
+              </Box>
+            </MenuItem>
+          ))
+        ) : (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <NotificationsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+            <Typography color="text.secondary">
+              No notifications yet
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Footer */}
+      <Box sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa', textAlign: 'center' }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'primary.main',
+            fontWeight: 600,
+            cursor: 'pointer',
+            '&:hover': {
+              textDecoration: 'underline',
+            }
+          }}
+        >
+          View All Notifications
+        </Typography>
+      </Box>
+    </Menu>
+  );
+};
+
 const ProfilePage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -69,6 +287,8 @@ const ProfilePage = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const [notifications] = useState(sampleNotifications);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -82,6 +302,14 @@ const ProfilePage = () => {
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleNotificationClick = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchorEl(null);
   };
 
   const handleLogout = async () => {
@@ -271,6 +499,7 @@ const ProfilePage = () => {
           <IconButton
             size="large"
             aria-label="show new notifications"
+            onClick={handleNotificationClick}
             sx={{
               backgroundColor: 'primary.main',
               color: 'secondary.main',
@@ -279,7 +508,7 @@ const ProfilePage = () => {
               },
             }}
           >
-            <Badge badgeContent={4} color="error">
+            <Badge badgeContent={notifications.filter(n => !n.read).length} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
@@ -524,6 +753,14 @@ const ProfilePage = () => {
             </Grid>
           </Grid>
         </form>
+
+        {/* Notification Menu */}
+        <NotificationMenu 
+          notifications={notifications}
+          open={Boolean(notificationAnchorEl)}
+          anchorEl={notificationAnchorEl}
+          onClose={handleNotificationClose}
+        />
         
       </Box>
     </Box>
