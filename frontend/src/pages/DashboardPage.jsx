@@ -24,6 +24,7 @@ import {
   MenuItem,
   Chip
 } from '@mui/material';
+import { Grid } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
   AccountCircle as ProfileIcon,
@@ -39,6 +40,39 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+
+// Sample Best Sellers Data
+const bestSellers = [
+  { name: 'Product A', sales: 4200, trend: '+12%' },
+  { name: 'Product B', sales: 3800, trend: '+8%' },
+  { name: 'Product C', sales: 3400, trend: '+15%' },
+  { name: 'Product D', sales: 2900, trend: '+5%' },
+  { name: 'Product E', sales: 2600, trend: '+3%' }
+];
+
+// Sample Sales Trend Data
+const salesData = [
+  { month: 'Jun', sales: 18500 },
+  { month: 'Jul', sales: 22000 },
+  { month: 'Aug', sales: 25800 },
+  { month: 'Sep', sales: 23400 },
+  { month: 'Oct', sales: 28900 },
+  { month: 'Nov', sales: 32100 }
+];
+
+// Sample Low Stock Data
+const lowestStock = [
+  { name: 'Widget XL', stock: 45, min: 100, status: 'critical' },
+  { name: 'Component Z', stock: 78, min: 150, status: 'low' },
+  { name: 'Tool Set Pro', stock: 92, min: 120, status: 'low' }
+];
+
+const getStockStatusColor = (status) => {
+  const colors = { critical: 'error', low: 'warning', warning: 'info' };
+  return colors[status] || 'default';
+};
 
 const drawerWidth = 260;
 
@@ -58,6 +92,7 @@ const theme = createTheme({
     fontFamily: 'Roboto, sans-serif',
   },
 });
+
 
 // Sample notifications data
 const sampleNotifications = [
@@ -518,18 +553,110 @@ const DashboardPage = () => {
           Dashboard
         </Typography>
         
-        <Paper sx={{ 
-          p: { xs: 2, sm: 3 }, 
-          borderRadius: 3, 
-          boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)' 
-        }}>
-          <Typography paragraph sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
-            Welcome to your warehouse management dashboard, <strong>{user ? user.username : 'User'}</strong>!
-          </Typography>
-          <Typography paragraph sx={{ fontSize: { xs: '0.95rem', sm: '1rem' } }}>
-            From here you can get an overview of your inventory, manage warehouses, and view statistics.
-          </Typography>
-        </Paper>
+        
+
+        {/* Dashboard Widgets */}
+        <Grid container spacing={3} sx={{ mt: 3 }}>
+          {/* Row 1: Low Stock Alerts, Key Metrics, Top 5 Best Sellers */}
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Low Stock Alerts</Typography>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Product</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Stock</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {lowestStock.map((p, i) => (
+                      <TableRow key={i}>
+                        <TableCell sx={{ fontSize: '0.85rem' }}>{p.name}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: '0.85rem' }}>{p.stock}</TableCell>
+                        <TableCell align="center">
+                          <Chip label={p.status.toUpperCase()} color={getStockStatusColor(p.status)} size="small" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>Key Metrics</Typography>
+              <Box sx={{ display: 'grid', gap: 1 }}>
+                <Box sx={{ p: 1.25, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">Warehouses</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>4</Typography>
+                </Box>
+                <Box sx={{ p: 1.25, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">Total Capacity</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>46K</Typography>
+                </Box>
+                <Box sx={{ p: 1.25, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">Current Stock</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>28.3K</Typography>
+                </Box>
+                <Box sx={{ p: 1.25, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Typography variant="caption" color="text.secondary">Avg Utilization</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>71%</Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Top 5 Best Sellers</Typography>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>Sales</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 600 }}>Trend</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {bestSellers.map((p, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{p.name}</TableCell>
+                        <TableCell align="right">{p.sales.toLocaleString()}</TableCell>
+                        <TableCell align="right">
+                          <Chip label={p.trend} color="success" size="small" sx={{ fontWeight: 600 }} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Grid>
+
+          {/* Row 2: Monthly Sales Trend and Recent Notifications */}
+          <Grid item xs={12} md={8}>
+            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Monthly Sales Trend</Typography>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={salesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => value.toLocaleString()} />
+                  <Legend />
+                  <Line type="monotone" dataKey="sales" stroke={green[800]} strokeWidth={2} name="Sales (Units)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </Paper>
+          </Grid>
+
+          {/* Recent Notifications removed per request */}
+        </Grid>
 
         {/* Notification Menu */}
         <NotificationMenu 

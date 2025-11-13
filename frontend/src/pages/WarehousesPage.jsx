@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -29,8 +29,10 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
   Button,
   TextField,
+  Alert,
   Popover,
   Stack,
   Menu,
@@ -396,7 +398,7 @@ const warehousesData = [
 ];
 
 // Shelf Items Popover Component
-const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose }) => {
+const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onProductSelect }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -569,6 +571,9 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose }) =>
             {filteredProducts.map((product) => (
               <Paper
                 key={product.id}
+                onClick={() => {
+                    if (onProductSelect) onProductSelect(product);
+                  }}
                 sx={{
                   p: 1.5,
                   bgcolor: 'background.default',
@@ -635,10 +640,177 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose }) =>
   );
 };
 
+  // Product Detail Dialog - shows QR, product name, and add/remove controls
+  const ProductDetailDialog = ({ open, onClose, product }) => {
+    const [qtyInput, setQtyInput] = useState(1);
+    const [qrUrl, setQrUrl] = useState(null);
+    const [loadingQr, setLoadingQr] = useState(false);
+    const [adjusting, setAdjusting] = useState(false);
+    const [message, setMessage] = useState(null);
+    const [productQty, setProductQty] = useState(product ? product.quantity : 0);
+
+    useEffect(() => {
+      setProductQty(product ? product.quantity : 0);
+      setQtyInput(1);
+      setMessage(null);
+      setQrUrl(null);
+      if (!open) return;
+
+      // Fetch QR code when dialog opens. Use a local objectUrl variable
+      // so cleanup doesn't depend on component state (avoids eslint missing-deps).
+      let objectUrl = null;
+      const fetchQr = async () => {
+        if (!product) return;
+        setLoadingQr(true);
+        try {
+          const res = await fetch(`/api/products/${encodeURIComponent(product.id)}/qrcode`);
+          if (!res.ok) throw new Error('Failed to fetch QR');
+
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.startsWith('image/')) {
+            const blob = await res.blob();
+            objectUrl = URL.createObjectURL(blob);
+            setQrUrl(objectUrl);
+          } else {
+            const json = await res.json();
+            if (json && json.qrcodeBase64) {
+              setQrUrl(`data:image/png;base64,${json.qrcodeBase64}`);
+            } else {
+              throw new Error('Unsupported QR response');
+            }
+          }
+        } catch (err) {
+          setMessage({ type: 'error', text: 'Unable to load QR code.' });
+        } finally {
+          setLoadingQr(false);
+        }
+      };
+
+      fetchQr();
+
+      return () => {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+        }
+      };
+    }, [open, product]);
+
+    const handleAdjust = async (deltaSign) => {
+      if (!product) return;
+      const qty = Math.max(0, Number(qtyInput) || 0);
+      if (qty <= 0) {
+        setMessage({ type: 'error', text: 'Please enter a positive number.' });
+        return;
+      }
+
+      const delta = deltaSign * qty;
+      setAdjusting(true);
+      setMessage(null);
+      try {
+        const res = await fetch(`/api/products/${encodeURIComponent(product.id)}/adjust`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ delta }),
+        });
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || 'Adjustment failed');
+        }
+
+        // Optionally read returned new quantity
+        let newQty = productQty;
+        try {
+          const json = await res.json();
+          if (json && typeof json.newQuantity === 'number') {
+            newQty = json.newQuantity;
+          } else {
+            newQty = Math.max(0, productQty + delta);
+          }
+        } catch (e) {
+          newQty = Math.max(0, productQty + delta);
+        }
+
+        setProductQty(newQty);
+        setMessage({ type: 'success', text: `Quantity updated (${delta > 0 ? '+' : ''}${delta})` });
+      } catch (err) {
+        setMessage({ type: 'error', text: err.message || 'Update failed' });
+      } finally {
+        setAdjusting(false);
+      }
+    };
+
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>{product ? product.name : 'Product'}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
+          {loadingQr ? (
+            <Box sx={{ py: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : qrUrl ? (
+            <Box sx={{ textAlign: 'center' }}>
+              <img src={qrUrl} alt="QR Code" style={{ maxWidth: '260px', width: '100%', height: 'auto' }} />
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                Unique QR for product ID: {product?.id}
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ py: 3 }}>
+              <Typography color="text.secondary">QR code not available</Typography>
+            </Box>
+          )}
+
+          <Box sx={{ width: '100%', display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField
+              label="Quantity"
+              type="number"
+              value={qtyInput}
+              onChange={(e) => setQtyInput(e.target.value)}
+              size="small"
+              fullWidth
+            />
+          </Box>
+
+          <Box sx={{ width: '100%', display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              color="error"
+              fullWidth
+              onClick={() => handleAdjust(-1)}
+              disabled={adjusting}
+            >
+              Remove
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              fullWidth
+              onClick={() => handleAdjust(1)}
+              disabled={adjusting}
+            >
+              Add
+            </Button>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary">Current quantity: {productQty}</Typography>
+
+          {message && (
+            <Alert severity={message.type} sx={{ width: '100%' }}>{message.text}</Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
 // Warehouse Visual Modal Component
 const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
   const [selectedShelfAnchor, setSelectedShelfAnchor] = useState(null);
   const [selectedShelf, setSelectedShelf] = useState(null);
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [selectedProductForModal, setSelectedProductForModal] = useState(null);
 
   const handleShelfClick = (event, shelf) => {
     setSelectedShelfAnchor(event.currentTarget);
@@ -648,6 +820,11 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
   const handleCloseShelfPopover = () => {
     setSelectedShelfAnchor(null);
     setSelectedShelf(null);
+  };
+
+  const handleProductSelect = (product) => {
+    setSelectedProductForModal(product);
+    setProductModalOpen(true);
   };
 
   if (!warehouse) return null;
@@ -968,6 +1145,14 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
         shelf={selectedShelf}
         warehouseName={warehouse?.name}
         onClose={handleCloseShelfPopover}
+        onProductSelect={handleProductSelect}
+      />
+
+      {/* Product Detail Dialog */}
+      <ProductDetailDialog
+        open={productModalOpen}
+        onClose={() => setProductModalOpen(false)}
+        product={selectedProductForModal}
       />
     </>
   );

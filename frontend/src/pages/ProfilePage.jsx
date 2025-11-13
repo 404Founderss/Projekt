@@ -339,13 +339,13 @@ const ProfilePage = () => {
 
     // Validate password match if changing password
     if (formData.newPassword && formData.newPassword !== formData.confirmPassword) {
-      setErrorMessage('Az új jelszavak nem egyeznek!');
+      setErrorMessage('New passwords do not match!');
       return;
     }
 
     // Simulate API call
     setTimeout(() => {
-      setSuccessMessage('Profil sikeresen frissítve!');
+      setSuccessMessage('Profile updated successfully!');
       setFormData(prev => ({
         ...prev,
         currentPassword: '',
@@ -359,7 +359,7 @@ const ProfilePage = () => {
     const file = e.target.files[0];
     if (file) {
       // Simulate profile picture upload
-      setSuccessMessage('Profilkép sikeresen feltöltve!');
+      setSuccessMessage('Profile picture uploaded successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
     }
   };
@@ -575,7 +575,7 @@ const ProfilePage = () => {
             fontSize: { xs: '1.75rem', sm: '2.125rem' }
           }}
         >
-          Profil
+          Profile
         </Typography>
 
         {successMessage && (
@@ -625,7 +625,7 @@ const ProfilePage = () => {
                   }
                 }}
               >
-                Profilkép módosítása
+                Change Profile Picture
                 <input
                   type="file"
                   hidden
@@ -639,7 +639,7 @@ const ProfilePage = () => {
 
         <form onSubmit={handleProfileUpdate}>
           <Grid container spacing={3}>
-            {/* Személyes adatok - bal oldal */}
+            {/* Personal information - left column */}
             <Grid item xs={12} md={6}>
               <Paper sx={{ 
                 p: { xs: 2, sm: 3 }, 
@@ -648,13 +648,13 @@ const ProfilePage = () => {
                 height: '100%'
               }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                  Személyes adatok
+                  Personal Information
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <TextField
                     fullWidth
-                    label="Felhasználónév"
+                    label="Username"
                     name="username"
                     value={formData.username}
                     onChange={handleInputChange}
@@ -663,7 +663,7 @@ const ProfilePage = () => {
 
                   <TextField
                     fullWidth
-                    label="Email cím"
+                    label="Email address"
                     name="email"
                     type="email"
                     value={formData.email}
@@ -673,7 +673,7 @@ const ProfilePage = () => {
 
                   <TextField
                     fullWidth
-                    label="Telefonszám"
+                    label="Phone number"
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
@@ -683,7 +683,7 @@ const ProfilePage = () => {
               </Paper>
             </Grid>
 
-            {/* Jelszó módosítása - jobb oldal */}
+            {/* Change password - right column */}
             <Grid item xs={12} md={6}>
               <Paper sx={{ 
                 p: { xs: 2, sm: 3 }, 
@@ -692,13 +692,13 @@ const ProfilePage = () => {
                 height: '100%'
               }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                  Jelszó módosítása
+                  Change Password
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <TextField
                     fullWidth
-                    label="Jelenlegi jelszó"
+                    label="Current Password"
                     name="currentPassword"
                     type="password"
                     value={formData.currentPassword}
@@ -708,7 +708,7 @@ const ProfilePage = () => {
 
                   <TextField
                     fullWidth
-                    label="Új jelszó"
+                    label="New Password"
                     name="newPassword"
                     type="password"
                     value={formData.newPassword}
@@ -719,20 +719,20 @@ const ProfilePage = () => {
 
                   <TextField
                     fullWidth
-                    label="Új jelszó megerősítése"
+                    label="Confirm New Password"
                     name="confirmPassword"
                     type="password"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     variant="outlined"
                     error={showPasswordError}
-                    helperText={showPasswordError ? 'A jelszavak nem egyeznek' : ''}
+                    helperText={showPasswordError ? 'Passwords do not match' : ''}
                   />
                 </Box>
               </Paper>
             </Grid>
 
-            {/* Mentés gomb */}
+            {/* Save button */}
             <Grid item xs={12}>
               <Button
                 type="submit"
@@ -748,7 +748,7 @@ const ProfilePage = () => {
                   }
                 }}
               >
-                Módosítások mentése
+                Save Changes
               </Button>
             </Grid>
           </Grid>
