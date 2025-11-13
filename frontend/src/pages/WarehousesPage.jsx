@@ -572,9 +572,8 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
               <Paper
                 key={product.id}
                 onClick={() => {
-                  onClose();
-                  if (onProductSelect) onProductSelect(product);
-                }}
+                    if (onProductSelect) onProductSelect(product);
+                  }}
                 sx={{
                   p: 1.5,
                   bgcolor: 'background.default',
@@ -826,9 +825,6 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
   const handleProductSelect = (product) => {
     setSelectedProductForModal(product);
     setProductModalOpen(true);
-    // close shelf popover and selection
-    setSelectedShelfAnchor(null);
-    setSelectedShelf(null);
   };
 
   if (!warehouse) return null;
