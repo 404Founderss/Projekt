@@ -6,7 +6,7 @@ import {
   ListItemIcon, ListItemText, Typography, IconButton, Avatar, 
   Divider, CssBaseline, Badge, Paper, useMediaQuery, useTheme as useMuiTheme,
   Grid, Table, TableBody, TableCell, TableContainer, TableHead, 
-  TableRow, Chip
+  TableRow, Chip, Menu, MenuItem // Added Menu, MenuItem
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon, AccountCircle as ProfileIcon,
@@ -14,7 +14,8 @@ import {
   BarChart as StatisticsIcon, Logout as LogoutIcon,
   Notifications as NotificationsIcon, Menu as MenuIcon,
   TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon,
-  Inventory as InventoryIcon, Warning as WarningIcon
+  Inventory as InventoryIcon, Warning as WarningIcon,
+  CheckCircle as SuccessIcon, Info as InfoIcon // Added SuccessIcon, InfoIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
@@ -31,6 +32,107 @@ const theme = createTheme({
 });
 
 const drawerWidth = 260;
+
+// --- SAMPLE NOTIFICATIONS DATA (Added) ---
+const sampleNotifications = [
+  {
+    id: 1,
+    type: 'success',
+    title: 'Shipment Delivered',
+    message: 'Order #12345 has been successfully delivered to warehouse A',
+    timestamp: '5 minutes ago',
+    read: false
+  },
+  {
+    id: 2,
+    type: 'warning',
+    title: 'Low Stock Alert',
+    message: 'Product SKU-001 in warehouse B is running low on stock',
+    timestamp: '1 hour ago',
+    read: false
+  },
+  {
+    id: 3,
+    type: 'info',
+    title: 'Warehouse Maintenance',
+    message: 'Scheduled maintenance for warehouse C on Nov 15, 2025',
+    timestamp: '2 hours ago',
+    read: true
+  }
+];
+
+// --- NOTIFICATION MENU COMPONENT (Added) ---
+const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'success': return <SuccessIcon sx={{ color: 'success.main', fontSize: 24 }} />;
+      case 'warning': return <WarningIcon sx={{ color: 'warning.main', fontSize: 24 }} />;
+      case 'info': return <InfoIcon sx={{ color: 'info.main', fontSize: 24 }} />;
+      default: return <InfoIcon sx={{ color: 'info.main', fontSize: 24 }} />;
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'success': return '#e8f5e9';
+      case 'warning': return '#fff3e0';
+      case 'info': return '#e3f2fd';
+      default: return '#f5f5f5';
+    }
+  };
+
+  return (
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      PaperProps={{
+        sx: { width: 420, maxHeight: 600, borderRadius: 2, boxShadow: '0 8px 32px 0 rgba(0,0,0,0.15)' }
+      }}
+    >
+      <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0', bgcolor: '#fafafa' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Notifications</Typography>
+          <Chip label={unreadCount} size="small" color="error" sx={{ fontWeight: 700 }} />
+        </Box>
+      </Box>
+      <Box sx={{ maxHeight: 450, overflowY: 'auto' }}>
+        {notifications.length > 0 ? (
+          notifications.map((notification) => (
+            <MenuItem
+              key={notification.id}
+              onClick={onClose}
+              sx={{
+                p: 2, borderBottom: '1px solid #f0f0f0',
+                bgcolor: notification.read ? '#fafafa' : getNotificationColor(notification.type),
+                '&:hover': { bgcolor: notification.read ? '#f5f5f5' : getNotificationColor(notification.type) },
+                alignItems: 'flex-start', display: 'flex', gap: 2
+              }}
+            >
+              <Box sx={{ flexShrink: 0, mt: 0.5 }}>{getNotificationIcon(notification.type)}</Box>
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: notification.read ? 500 : 700 }}>
+                    {notification.title}
+                  </Typography>
+                  {!notification.read && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main', mt: 1 }} />}
+                </Box>
+                <Typography variant="caption" sx={{ display: 'block', color: '#666', mb: 0.5 }}>{notification.message}</Typography>
+                <Typography variant="caption" sx={{ color: '#999', fontSize: '0.7rem' }}>{notification.timestamp}</Typography>
+              </Box>
+            </MenuItem>
+          ))
+        ) : (
+          <Box sx={{ p: 4, textAlign: 'center' }}><Typography color="text.secondary">No notifications</Typography></Box>
+        )}
+      </Box>
+    </Menu>
+  );
+};
 
 // Sample Data
 const bestSellers = [
@@ -131,6 +233,10 @@ const StatisticsPage = () => {
   const [selectedPage, setSelectedPage] = useState('Statistics');
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // --- NOTIFICATION STATE (Added) ---
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const [notifications] = useState(sampleNotifications);
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -139,6 +245,15 @@ const StatisticsPage = () => {
   const handleMenuClick = (text) => {
     setSelectedPage(text);
     if (isMobile) setMobileOpen(false);
+  };
+
+  // --- NOTIFICATION HANDLERS (Added) ---
+  const handleNotificationClick = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchorEl(null);
   };
 
   // Sidebar Content
@@ -227,12 +342,18 @@ const StatisticsPage = () => {
               Statistics
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
-            <IconButton size="large" sx={{
-              backgroundColor: 'primary.main',
-              color: 'secondary.main',
-              '&:hover': { backgroundColor: 'primary.dark' }
-            }}>
-              <Badge badgeContent={4} color="error">
+            
+            {/* --- NOTIFICATION ICON (Updated) --- */}
+            <IconButton 
+              size="large" 
+              onClick={handleNotificationClick}
+              sx={{
+                backgroundColor: 'primary.main',
+                color: 'secondary.main',
+                '&:hover': { backgroundColor: 'primary.dark' }
+              }}
+            >
+              <Badge badgeContent={notifications.filter(n => !n.read).length} color="error">
                 <NotificationsIcon />
               </Badge>
             </IconButton>
@@ -463,6 +584,14 @@ const StatisticsPage = () => {
           </Grid>
         </Box>
       </Box>
+      
+      {/* --- NOTIFICATION MENU INSTANCE (Added) --- */}
+      <NotificationMenu 
+        notifications={notifications}
+        open={Boolean(notificationAnchorEl)}
+        anchorEl={notificationAnchorEl}
+        onClose={handleNotificationClose}
+      />
     </ThemeProvider>
   );
 };
