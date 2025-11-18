@@ -5,13 +5,17 @@ import { useAuth } from '../context/AuthContext';
 import {
   Box, Drawer, AppBar, Toolbar, List, ListItem, ListItemButton,
   ListItemIcon, ListItemText, Typography, IconButton, Avatar,
-  Divider, CssBaseline, Badge, Paper, Button, TextField
+  Divider, CssBaseline, Badge, Paper, Button, TextField,
+  Menu, MenuItem, Chip
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon, AccountCircle as ProfileIcon,
   Warehouse as WarehouseIcon, AddBusiness as NewWarehouseIcon,
   BarChart as StatisticsIcon, Logout as LogoutIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  Info as InfoIcon,
+  Warning as WarningIcon,
+  CheckCircle as SuccessIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
@@ -30,8 +34,108 @@ const theme = createTheme({
   typography: { fontFamily: 'Roboto, sans-serif' },
 });
 
+// --- SAMPLE NOTIFICATIONS DATA ---
+const sampleNotifications = [
+  {
+    id: 1,
+    type: 'success',
+    title: 'Shipment Delivered',
+    message: 'Order #12345 has been successfully delivered to warehouse A',
+    timestamp: '5 minutes ago',
+    read: false
+  },
+  {
+    id: 2,
+    type: 'warning',
+    title: 'Low Stock Alert',
+    message: 'Product SKU-001 in warehouse B is running low on stock',
+    timestamp: '1 hour ago',
+    read: false
+  },
+  {
+    id: 3,
+    type: 'info',
+    title: 'Warehouse Maintenance',
+    message: 'Scheduled maintenance for warehouse C on Nov 15, 2025',
+    timestamp: '2 hours ago',
+    read: true
+  }
+];
 
-// --- Méretezhető Alakzat Komponens ---
+// --- NOTIFICATION MENU COMPONENT ---
+const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'success': return <SuccessIcon sx={{ color: 'success.main', fontSize: 24 }} />;
+      case 'warning': return <WarningIcon sx={{ color: 'warning.main', fontSize: 24 }} />;
+      case 'info': return <InfoIcon sx={{ color: 'info.main', fontSize: 24 }} />;
+      default: return <InfoIcon sx={{ color: 'info.main', fontSize: 24 }} />;
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'success': return '#e8f5e9';
+      case 'warning': return '#fff3e0';
+      case 'info': return '#e3f2fd';
+      default: return '#f5f5f5';
+    }
+  };
+
+  return (
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      PaperProps={{
+        sx: { width: 420, maxHeight: 600, borderRadius: 2, boxShadow: '0 8px 32px 0 rgba(0,0,0,0.15)' }
+      }}
+    >
+      <Box sx={{ p: 2.5, borderBottom: '1px solid #e0e0e0', bgcolor: '#fafafa' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>Notifications</Typography>
+          <Chip label={unreadCount} size="small" color="error" sx={{ fontWeight: 700 }} />
+        </Box>
+      </Box>
+      <Box sx={{ maxHeight: 450, overflowY: 'auto' }}>
+        {notifications.length > 0 ? (
+          notifications.map((notification) => (
+            <MenuItem
+              key={notification.id}
+              onClick={onClose}
+              sx={{
+                p: 2, borderBottom: '1px solid #f0f0f0',
+                bgcolor: notification.read ? '#fafafa' : getNotificationColor(notification.type),
+                '&:hover': { bgcolor: notification.read ? '#f5f5f5' : getNotificationColor(notification.type) },
+                alignItems: 'flex-start', display: 'flex', gap: 2
+              }}
+            >
+              <Box sx={{ flexShrink: 0, mt: 0.5 }}>{getNotificationIcon(notification.type)}</Box>
+              <Box sx={{ flex: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ fontWeight: notification.read ? 500 : 700 }}>
+                    {notification.title}
+                  </Typography>
+                  {!notification.read && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main', mt: 1 }} />}
+                </Box>
+                <Typography variant="caption" sx={{ display: 'block', color: '#666', mb: 0.5 }}>{notification.message}</Typography>
+                <Typography variant="caption" sx={{ color: '#999', fontSize: '0.7rem' }}>{notification.timestamp}</Typography>
+              </Box>
+            </MenuItem>
+          ))
+        ) : (
+          <Box sx={{ p: 4, textAlign: 'center' }}><Typography color="text.secondary">No notifications</Typography></Box>
+        )}
+      </Box>
+    </Menu>
+  );
+};
+
+// --- Méretezhető Alakzat Komponens (UPDATED ROTATION) ---
 const ResizableShape = ({ shape, isSelected, onSelect, onChange }) => {
   const shapeRef = useRef();
   const trRef = useRef();
@@ -50,6 +154,7 @@ const ResizableShape = ({ shape, isSelected, onSelect, onChange }) => {
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
 
+    // Reset scale to 1 and adjust width/height to avoid scaling effects on stroke
     node.scaleX(1);
     node.scaleY(1);
 
@@ -57,6 +162,7 @@ const ResizableShape = ({ shape, isSelected, onSelect, onChange }) => {
       ...shape,
       x: node.x(),
       y: node.y(),
+      // We save the rotation as it is returned by the transformer (which will be snapped)
       rotation: node.rotation(),
       width: Math.max(5, node.width() * scaleX),
       height: Math.max(5, node.height() * scaleY),
@@ -89,6 +195,8 @@ const ResizableShape = ({ shape, isSelected, onSelect, onChange }) => {
       {isSelected && (
         <Transformer
           ref={trRef}
+          // --- UPDATE: SNAP ROTATION TO 90 DEGREES ---
+          rotationSnaps={[0, 90, 180, 270]} 
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) {
               return oldBox;
@@ -112,6 +220,10 @@ const NewWarehousePage = () => {
   const [shapes, setShapes] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   
+  // Notification State
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const [notifications] = useState(sampleNotifications);
+
   const stageContainerRef = useRef(null);
   const stageRef = useRef(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -121,9 +233,7 @@ const NewWarehousePage = () => {
     if (!stageContainerRef.current) {
       return;
     }
-    
     const container = stageContainerRef.current;
-    
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
       if (entry) {
@@ -131,17 +241,22 @@ const NewWarehousePage = () => {
         setStageSize({ width, height });
       }
     });
-    
     observer.observe(container);
-    
-    return () => {
-      observer.unobserve(container);
-    };
+    return () => observer.unobserve(container);
   }, []);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  // Notification Handlers
+  const handleNotificationClick = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchorEl(null);
   };
 
   const menuItems = [
@@ -178,24 +293,16 @@ const NewWarehousePage = () => {
                 color: 'secondary.main',
                 borderRadius: 2,
                 mx: 1.5,
-                '& .MuiListItemIcon-root': {
-                  color: 'secondary.main',
-                },
+                '& .MuiListItemIcon-root': { color: 'secondary.main' },
                 '&.Mui-selected': {
                   backgroundColor: 'rgba(255, 255, 255, 0.25)',
                   borderLeft: '5px solid #ffffff',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                  }
+                  '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.3)' }
                 },
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                }
+                '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' }
               }}
             >
-              <ListItemIcon>
-                {item.icon}
-              </ListItemIcon>
+              <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} sx={{ fontWeight: 500 }} />
             </ListItemButton>
           </ListItem>
@@ -210,20 +317,12 @@ const NewWarehousePage = () => {
               onClick={handleLogout}
               sx={{
                 color: 'secondary.main',
-                borderRadius: 2,
-                mx: 1.5,
-                my: 1,
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 0, 0, 0.2)',
-                },
-                '& .MuiListItemIcon-root': {
-                  color: 'secondary.main',
-                },
+                borderRadius: 2, mx: 1.5, my: 1,
+                '&:hover': { backgroundColor: 'rgba(255, 0, 0, 0.2)' },
+                '& .MuiListItemIcon-root': { color: 'secondary.main' },
               }}
             >
-              <ListItemIcon>
-                <LogoutIcon />
-              </ListItemIcon>
+              <ListItemIcon><LogoutIcon /></ListItemIcon>
               <ListItemText primary="Log out" />
             </ListItemButton>
           </ListItem>
@@ -238,9 +337,7 @@ const NewWarehousePage = () => {
     const newShape = {
       id: `shape-${Date.now()}`,
       type: type,
-      x: 100,
-      y: 100,
-      rotation: 0,
+      x: 100, y: 100, rotation: 0,
       width: type === 'shelf' ? 120 : 150,
       height: type === 'shelf' ? 40 : 10,
     };
@@ -268,10 +365,7 @@ const NewWarehousePage = () => {
       alert('Please enter a name for the warehouse.');
       return;
     }
-    const dataToSave = {
-      name: warehouseName,
-      layout: shapes
-    };
+    const dataToSave = { name: warehouseName, layout: shapes };
     console.log('--- WAREHOUSE SAVED (KONVA DATA) ---');
     console.log(dataToSave);
     alert(`Warehouse '${warehouseName}' saved! Check the console (F12) for the data.`);
@@ -312,15 +406,18 @@ const NewWarehousePage = () => {
         }}>
         <Toolbar>
           <Box sx={{ flexGrow: 1 }} />
+          
+          {/* NOTIFICATION ICON */}
           <IconButton 
             size="large" 
             aria-label="show new notifications" 
+            onClick={handleNotificationClick}
             sx={{ 
               backgroundColor: 'primary.main', 
               color: 'secondary.main', 
               '&:hover': { backgroundColor: 'primary.dark' } 
             }}>
-            <Badge badgeContent={4} color="error">
+            <Badge badgeContent={notifications.filter(n => !n.read).length} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
@@ -366,7 +463,7 @@ const NewWarehousePage = () => {
         </Typography>
         
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* 1. Vezérlő sáv és Eszköztár - RESPONSIVE */}
+          {/* 1. Vezérlő sáv és Eszköztár */}
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 2 }}>
             <Paper sx={{ 
               p: { xs: 1.5, sm: 2 }, 
@@ -419,17 +516,14 @@ const NewWarehousePage = () => {
               p: { xs: 1.5, sm: 2 }, 
               borderRadius: 3, 
               boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
-              display: 'flex',
+              display: 'flex', 
               flexDirection: { xs: 'column', sm: 'row' },
               alignItems: { xs: 'stretch', sm: 'center' },
               gap: 2
             }}>
               <Typography 
                 variant="body1" 
-                sx={{ 
-                  fontWeight: 600,
-                  display: { xs: 'none', sm: 'block' }
-                }}
+                sx={{ fontWeight: 600, display: { xs: 'none', sm: 'block' } }}
               >
                 Toolbox:
               </Typography>
@@ -474,19 +568,14 @@ const NewWarehousePage = () => {
             </Paper>
           </Box>
 
-          {/* 2. RAJZVÁSZON (KONVA) - RESPONSIVE */}
+          {/* 2. RAJZVÁSZON (KONVA) */}
           <Box 
             ref={stageContainerRef}
             id="canvas-container"
             sx={{ 
               borderRadius: 3, 
               boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
-              height: { 
-                xs: '50vh',
-                sm: '60vh', 
-                md: '70vh',
-                lg: '72vh'
-              },
+              height: { xs: '50vh', sm: '60vh', md: '70vh', lg: '72vh' },
               width: '100%',
               border: '2px dashed #ccc',
               backgroundColor: '#ffffff',
@@ -495,7 +584,6 @@ const NewWarehousePage = () => {
               margin: '0 auto'
             }}
           >
-                {/* Csak akkor rendereljük, ha már van mérete */}
                 {stageSize.width > 0 && (
                   <Stage
                     ref={stageRef}
@@ -520,14 +608,12 @@ const NewWarehousePage = () => {
                   </Stage>
                 )}
                 
-            {/* Üres állapot üzenet */}
             {shapes.length === 0 && (
               <Typography sx={{ 
                 color: 'text.secondary', 
                 textAlign: 'center', 
                 position: 'absolute', 
-                top: '50%', 
-                left: '50%', 
+                top: '50%', left: '50%', 
                 transform: 'translate(-50%, -50%)',
                 pointerEvents: 'none',
                 fontSize: { xs: '0.875rem', sm: '1rem' },
@@ -539,6 +625,15 @@ const NewWarehousePage = () => {
           </Box>
         </Box>
       </Box>
+
+      {/* Notification Menu Component Instance */}
+      <NotificationMenu 
+        notifications={notifications} 
+        open={Boolean(notificationAnchorEl)} 
+        anchorEl={notificationAnchorEl} 
+        onClose={handleNotificationClose} 
+      />
+
     </Box>
   );
 };
