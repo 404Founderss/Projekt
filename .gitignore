@@ -2,3 +2,5 @@ node_modules/
 .DS_Store
 database
 package-lock.json
+database.mv.db
+database.trace.db
