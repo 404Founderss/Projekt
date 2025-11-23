@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * JWT token generátor és validátor
+ * JWT token generátor és validátor.
  */
 @Component
 public class JwtUtil {
@@ -76,16 +76,17 @@ public class JwtUtil {
 
     /**
      * Összes claim kinyerése a tokenből.
+     * parseClaimsJws használata parse helyett!
      */
     private Claims extractAllClaims(String token) {
-        return (Claims) Jwts.parser()
+        return Jwts.parser()
                 .setSigningKey(secret.getBytes())
-                .parse(token)
+                .parseClaimsJws(token)
                 .getBody();
     }
 
     /**
-     * Lejárt-e a token.
+     * Lejárte a token.
      */
     private Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
@@ -93,7 +94,6 @@ public class JwtUtil {
 
     /**
      * Token validálás.
-     * @return true, ha a token érvényes és a username egyezik
      */
     public Boolean validateToken(String token, String username) {
         final String extractedUsername = extractUsername(token);
