@@ -30,16 +30,10 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    /**
-     * Szerepkör (SYSTEM_ADMIN, OWNER, CLERK, WAREHOUSE_WORKER)
-     */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role;
 
-    /**
-     * Melyik céghez tartozik (Adminnak lehet null
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id")
     private Company company;
@@ -74,14 +68,4 @@ public class User {
     public boolean isOwner() {
         return role == Role.OWNER;
     }
-}
-
-/**
- * Szerepkörök enum
- */
-enum Role {
-    SYSTEM_ADMIN,      // Rendszer admin
-    OWNER,             // Tulajdonos
-    CLERK,             // Irodista
-    WAREHOUSE_WORKER   // Raktáros
 }
