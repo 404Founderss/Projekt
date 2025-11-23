@@ -69,6 +69,9 @@ Product {
     @Column(length = 3)
     private String currency;
 
+    @Column(name = "current_stock", nullable = false)
+    private Integer currentStock = 0;
+
     @Column(name = "min_stock_level")
     private Integer minStockLevel;
 
@@ -121,10 +124,22 @@ Product {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (currentStock == null) {
+            currentStock = 0;
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    public boolean isLowStock() {
+        return minStockLevel != null && currentStock <= minStockLevel;
+    }
+
+    public boolean isOverStock() {
+        return maxStockLevel != null && currentStock >= maxStockLevel;
+    }
 }
+
