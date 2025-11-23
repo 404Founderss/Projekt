@@ -3,6 +3,7 @@ package com.founders404.backend.controller;
 import com.founders404.backend.dto.LoginRequest;
 import com.founders404.backend.dto.LoginResponse;
 import com.founders404.backend.dto.RegisterRequest;
+import com.founders404.backend.model.Role;
 import com.founders404.backend.model.User;
 import com.founders404.backend.service.UserService;
 import jakarta.validation.Valid;
@@ -26,15 +27,21 @@ public class AuthController {
     /**
      * Felhasználó regisztrációja.
      * POST /api/auth/register
-     * Body: { "username": "...", "password": "...", "role": "USER" }
      */
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterRequest request) {
         try {
             User user = new User();
             user.setUsername(request.getUsername());
+            user.setEmail(request.getEmail());
             user.setPassword(request.getPassword());
-            user.setRole(request.getRole() != null ? request.getRole() : "USER");
+
+            // Role beállítása - String-ből Role enum-má konvertálás
+            if (request.getRole() != null) {
+                user.setRole(Role.valueOf(request.getRole()));
+            } else {
+                user.setRole(Role.WAREHOUSE_WORKER); // Alapértelmezett
+            }
 
             userService.register(user);
 
@@ -43,6 +50,9 @@ public class AuthController {
                             "message", "User registered successfully",
                             "username", user.getUsername()
                     ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "Invalid role: " + request.getRole()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
@@ -52,8 +62,6 @@ public class AuthController {
     /**
      * Bejelentkezés és JWT token lekérése.
      * POST /api/auth/login
-     * Body: { "username": "...", "password": "..." }
-     * Response: { "token": "...", "username": "...", "role": "..." }
      */
     @PostMapping("/login")
     public ResponseEntity<Object> login(@Valid @RequestBody LoginRequest request) {
@@ -64,7 +72,7 @@ public class AuthController {
             LoginResponse response = new LoginResponse(
                     token,
                     user.getUsername(),
-                    user.getRole()
+                    user.getRole().name() // Role enum -> String konverzió
             );
 
             return ResponseEntity.ok(response);
@@ -75,14 +83,11 @@ public class AuthController {
     }
 
     /**
-     * Token validálás (opcionális endpoint).
+     * Token validálás.
      * GET /api/auth/validate
-     * Header: Authorization: Bearer <token>
      */
     @GetMapping("/validate")
     public ResponseEntity<Map<String, Boolean>> validateToken() {
-        // A JwtAuthenticationFilter már validálta a tokent
-        // Ha idáig eljutottunk, akkor valid a token
         return ResponseEntity.ok(Map.of("valid", true));
     }
 }

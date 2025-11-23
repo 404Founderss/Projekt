@@ -1,5 +1,6 @@
 package com.founders404.backend.service;
 
+import com.founders404.backend.model.Role;
 import com.founders404.backend.model.User;
 import com.founders404.backend.repository.UserRepository;
 import com.founders404.backend.security.JwtUtil;
@@ -16,11 +17,10 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
-    private final PasswordEncoder passwordEncoder; // Dependency injection-nel jön majd
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * Új felhasználó regisztrálása.
-     * @throws RuntimeException ha a username már létezik
      */
     public void register(User user) {
         // Ellenőrizzük, hogy létezik-e már ilyen username
@@ -28,9 +28,14 @@ public class UserService {
             throw new RuntimeException("Username already exists");
         }
 
-        // Ha nincs role beállítva, alapértelmezett legyen USER
-        if (user.getRole() == null || user.getRole().isEmpty()) {
-            user.setRole("USER");
+        // Email ellenőrzés
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        // Ha nincs role beállítva, alapértelmezett legyen WAREHOUSE_WORKER
+        if (user.getRole() == null) {
+            user.setRole(Role.WAREHOUSE_WORKER);
         }
 
         // Jelszó hash-elés
@@ -40,10 +45,7 @@ public class UserService {
 
     /**
      * Bejelentkezés és JWT token generálás.
-     * @return JWT token string
-     * @throws RuntimeException ha hibás a username vagy password
      */
-
     public String login(String username, String password) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
@@ -52,12 +54,12 @@ public class UserService {
             throw new RuntimeException("Invalid credentials");
         }
 
-        // Token generálás a username és role alapján
-        return jwtUtil.generateToken(username, user.getRole());
+        // Token generálás
+        return jwtUtil.generateToken(username, user.getRole().name());
     }
 
     /**
-     * Felhasználó keresése username alapján (opcionális, ha kellene).
+     * Felhasználó keresése username alapján.
      */
     public User findByUsername(String username) {
         return userRepository.findByUsername(username)
