@@ -365,10 +365,25 @@ const NewWarehousePage = () => {
       alert('Please enter a name for the warehouse.');
       return;
     }
-    const dataToSave = { name: warehouseName, layout: shapes };
-    console.log('--- WAREHOUSE SAVED (KONVA DATA) ---');
-    console.log(dataToSave);
-    alert(`Warehouse '${warehouseName}' saved! Check the console (F12) for the data.`);
+    const dataToSave = {
+      id: `W-${Date.now()}`,
+      name: warehouseName,
+      layout: { shapes },
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      const existing = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
+      existing.push(dataToSave);
+      localStorage.setItem('savedWarehouses', JSON.stringify(existing));
+      console.log('--- WAREHOUSE SAVED (KONVA DATA) ---', dataToSave);
+      // notify other parts of the app in the same tab
+      try { window.dispatchEvent(new Event('savedWarehousesUpdated')); } catch (e) { /* ignore */ }
+      alert(`Warehouse '${warehouseName}' saved! It will appear in Warehouses list.`);
+    } catch (err) {
+      console.error('Failed to save warehouse', err);
+      alert('Failed to save warehouse. See console for details.');
+    }
   };
 
   const handleClear = () => {

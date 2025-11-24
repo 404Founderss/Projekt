@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -58,6 +58,7 @@ import {
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
+import { Stage, Layer, Rect } from 'react-konva';
 
 const drawerWidth = 260;
 
@@ -396,6 +397,44 @@ const warehousesData = [
     ]
   }
 ];
+
+// Load user-saved warehouses from localStorage (created in NewWarehousePage)
+const loadSavedWarehouses = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
+    if (!Array.isArray(saved) || saved.length === 0) return [];
+
+    return saved.map((s, idx) => {
+      const shapes = (s.layout && Array.isArray(s.layout.shapes)) ? s.layout.shapes : [];
+      const shelves = shapes.map((shape, i) => {
+        const shelfId = shape.id || `S-${idx}-${i + 1}`;
+        const occupied = shape.type === 'shelf';
+        const approxItems = Math.max(0, Math.floor(((shape.width || 100) * (shape.height || 40)) / 200));
+        return {
+          id: shelfId,
+          occupied,
+          items: occupied ? approxItems : 0,
+          products: occupied ? generateProducts(shelfId, Math.min(20, Math.max(1, approxItems))) : []
+        };
+      });
+
+      return {
+        id: s.id || 100000 + idx,
+        name: s.name || `Saved Warehouse ${idx + 1}`,
+        capacity: 10000,
+        currentStock: shelves.reduce((sum, sh) => sum + (sh.items || 0), 0),
+        lastUpdate: s.createdAt || new Date().toLocaleString(),
+        shelves,
+        layout: { shapes }
+      };
+    });
+  } catch (e) {
+    console.error('Failed to load saved warehouses', e);
+    return [];
+  }
+};
+
+// savedWarehouses will be loaded inside the component so UI updates when users save new layouts
 
 // Shelf Items Popover Component
 const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onProductSelect }) => {
@@ -805,6 +844,87 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
     );
   };
 
+// Konva-based layout renderer for saved warehouse shapes
+const KonvaLayoutRenderer = ({ shapes = [], onRectClick }) => {
+  const containerRef = useRef(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const obs = new ResizeObserver(entries => {
+      const rect = entries[0].contentRect;
+      setSize({ width: rect.width, height: rect.height });
+    });
+    obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  if (!shapes || shapes.length === 0) {
+    return <Box ref={containerRef} sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' } }} />;
+  }
+
+  // compute bounding box of shapes
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  shapes.forEach(s => {
+    const x = Number(s.x || 0);
+    const y = Number(s.y || 0);
+    const w = Number(s.width || 100);
+    const h = Number(s.height || 40);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  });
+  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 100; maxY = 40; }
+
+  const contentW = Math.max(1, maxX - minX);
+  const contentH = Math.max(1, maxY - minY);
+  const padding = 20;
+  const scale = Math.min(
+    Math.max(0.1, (size.width - padding * 2) / contentW),
+    Math.max(0.1, (size.height - padding * 2) / contentH),
+  ) || 1;
+
+  const offsetX = (size.width - contentW * scale) / 2 - minX * scale;
+  const offsetY = (size.height - contentH * scale) / 2 - minY * scale;
+
+  return (
+    <Box ref={containerRef} sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' } }}>
+      {size.width > 0 && size.height > 0 && (
+        <Stage width={Math.max(100, size.width)} height={Math.max(100, size.height)}>
+          <Layer>
+            {shapes.map((s) => {
+              const x = offsetX + (Number(s.x || 0) * scale);
+              const y = offsetY + (Number(s.y || 0) * scale);
+              const w = Math.max(2, (Number(s.width || 100) * scale));
+              const h = Math.max(2, (Number(s.height || 40) * scale));
+              const rotation = Number(s.rotation || 0);
+              const isShelf = s.type === 'shelf';
+              return (
+                <Rect
+                  key={s.id}
+                  x={x}
+                  y={y}
+                  width={w}
+                  height={h}
+                  rotation={rotation}
+                  fill={isShelf ? green[200] : '#999'}
+                  stroke={isShelf ? green[800] : '#333'}
+                  strokeWidth={2}
+                  cornerRadius={isShelf ? 4 : 0}
+                  onClick={() => onRectClick && onRectClick(s)}
+                  onTap={() => onRectClick && onRectClick(s)}
+                  perfectDrawEnabled={false}
+                />
+              );
+            })}
+          </Layer>
+        </Stage>
+      )}
+    </Box>
+  );
+};
+
 // Warehouse Visual Modal Component
 const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
   const [selectedShelfAnchor, setSelectedShelfAnchor] = useState(null);
@@ -902,11 +1022,11 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
             </Grid>
           </Grid>
 
-          {/* Warehouse Layout */}
-          <Paper 
-            elevation={0} 
-            sx={{ 
-              p: 3, 
+          {/* Warehouse Layout: render Konva floorplan when saved layout exists */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
               bgcolor: '#f5f5f5',
               border: '2px dashed #ccc',
               borderRadius: 2
@@ -915,208 +1035,236 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, textAlign: 'center' }}>
               Warehouse Floor Plan
             </Typography>
-            
+
             <Typography variant="caption" sx={{ display: 'block', mb: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
               Click on any shelf to view its products
             </Typography>
-            
-            {/* Entrance */}
-            <Box sx={{ 
-              textAlign: 'center', 
-              mb: 2,
-              pb: 1,
-              borderBottom: '3px solid #666'
-            }}>
-              <Typography variant="caption" sx={{ 
-                bgcolor: 'warning.main', 
-                color: 'white',
-                px: 2,
-                py: 0.5,
-                borderRadius: 1,
-                fontWeight: 600
-              }}>
-                ENTRANCE
-              </Typography>
-            </Box>
 
-            {/* Shelves Grid */}
-            <Grid container spacing={2}>
-              {/* Left Aisle */}
-              <Grid item xs={5.5}>
-                <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
-                  Aisle A-B
-                </Typography>
-                <Grid container spacing={1}>
-                  {warehouse.shelves.slice(0, 6).map((shelf) => (
-                    <Grid item xs={4} key={shelf.id}>
-                      <Paper
-                        onClick={(e) => handleShelfClick(e, shelf)}
-                        elevation={shelf.occupied ? 3 : 0}
-                        sx={{
-                          p: 1.5,
-                          textAlign: 'center',
-                          bgcolor: shelf.occupied ? green[700] : 'grey.300',
-                          color: shelf.occupied ? 'white' : 'grey.600',
-                          borderRadius: 1,
-                          border: shelf.occupied ? 'none' : '2px dashed grey.400',
-                          minHeight: '80px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          transition: 'all 0.3s',
-                          cursor: shelf.occupied ? 'pointer' : 'default',
-                          '&:hover': shelf.occupied ? {
-                            transform: 'scale(1.08)',
-                            boxShadow: 4,
-                            bgcolor: green[600],
-                          } : {
-                            transform: 'scale(1.05)',
-                            boxShadow: 3
-                          }
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                          {shelf.id}
-                        </Typography>
-                        {shelf.occupied ? (
-                          <>
-                            <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                              {shelf.items} items
-                            </Typography>
-                          </>
-                        ) : (
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                            Empty
-                          </Typography>
-                        )}
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Grid>
-
-              {/* Center Aisle */}
-              <Grid item xs={1} sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                borderLeft: '2px dashed #999',
-                borderRight: '2px dashed #999'
-              }}>
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    writingMode: 'vertical-rl',
-                    transform: 'rotate(180deg)',
-                    fontWeight: 600,
-                    color: 'text.secondary'
-                  }}
+            {/* If warehouse has a saved konva layout, render it exactly; otherwise fall back to the grid */}
+            {warehouse.layout && Array.isArray(warehouse.layout.shapes) && warehouse.layout.shapes.length > 0 ? (
+              <Box ref={el => { /* placeholder */ }}>
+                <Box
+                  ref={el => { /* keep placeholder for layout */ }}
+                  sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' }, position: 'relative' }}
                 >
-                  MAIN CORRIDOR
-                </Typography>
-              </Grid>
+                  <KonvaLayoutRenderer
+                    shapes={warehouse.layout.shapes}
+                    onRectClick={(shape) => {
+                      // try to find matching shelf data
+                      const shelf = (warehouse.shelves || []).find(s => s.id === shape.id) || {
+                        id: shape.id,
+                        occupied: shape.type === 'shelf',
+                        items: 0,
+                        products: []
+                      };
+                      // anchor popover to the dialog container
+                      handleShelfClick({ currentTarget: document.querySelector('[role="presentation"]') || document.body }, shelf);
+                    }}
+                  />
+                </Box>
+              </Box>
+            ) : (
+              // fallback: existing grid layout (unchanged)
+              <> 
+                {/* Entrance */}
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  mb: 2,
+                  pb: 1,
+                  borderBottom: '3px solid #666'
+                }}>
+                  <Typography variant="caption" sx={{ 
+                    bgcolor: 'warning.main', 
+                    color: 'white',
+                    px: 2,
+                    py: 0.5,
+                    borderRadius: 1,
+                    fontWeight: 600
+                  }}>
+                    ENTRANCE
+                  </Typography>
+                </Box>
 
-              {/* Right Aisle */}
-              <Grid item xs={5.5}>
-                <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
-                  Aisle C-D
-                </Typography>
-                <Grid container spacing={1}>
-                  {warehouse.shelves.slice(6, 12).map((shelf) => (
-                    <Grid item xs={4} key={shelf.id}>
-                      <Paper
-                        onClick={(e) => handleShelfClick(e, shelf)}
-                        elevation={shelf.occupied ? 3 : 0}
-                        sx={{
-                          p: 1.5,
-                          textAlign: 'center',
-                          bgcolor: shelf.occupied ? green[700] : 'grey.300',
-                          color: shelf.occupied ? 'white' : 'grey.600',
-                          borderRadius: 1,
-                          border: shelf.occupied ? 'none' : '2px dashed grey.400',
-                          minHeight: '80px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          transition: 'all 0.3s',
-                          cursor: shelf.occupied ? 'pointer' : 'default',
-                          '&:hover': shelf.occupied ? {
-                            transform: 'scale(1.08)',
-                            boxShadow: 4,
-                            bgcolor: green[600],
-                          } : {
-                            transform: 'scale(1.05)',
-                            boxShadow: 3
-                          }
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                          {shelf.id}
-                        </Typography>
-                        {shelf.occupied ? (
-                          <>
-                            <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                              {shelf.items} items
+                {/* Shelves Grid (original code preserved) */}
+                <Grid container spacing={2}>
+                  {/* Left Aisle */}
+                  <Grid item xs={5.5}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+                      Aisle A-B
+                    </Typography>
+                    <Grid container spacing={1}>
+                      {warehouse.shelves.slice(0, 6).map((shelf) => (
+                        <Grid item xs={4} key={shelf.id}>
+                          <Paper
+                            onClick={(e) => handleShelfClick(e, shelf)}
+                            elevation={shelf.occupied ? 3 : 0}
+                            sx={{
+                              p: 1.5,
+                              textAlign: 'center',
+                              bgcolor: shelf.occupied ? green[700] : 'grey.300',
+                              color: shelf.occupied ? 'white' : 'grey.600',
+                              borderRadius: 1,
+                              border: shelf.occupied ? 'none' : '2px dashed grey.400',
+                              minHeight: '80px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              transition: 'all 0.3s',
+                              cursor: shelf.occupied ? 'pointer' : 'default',
+                              '&:hover': shelf.occupied ? {
+                                transform: 'scale(1.08)',
+                                boxShadow: 4,
+                                bgcolor: green[600],
+                              } : {
+                                transform: 'scale(1.05)',
+                                boxShadow: 3
+                              }
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                              {shelf.id}
                             </Typography>
-                          </>
-                        ) : (
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                            Empty
-                          </Typography>
-                        )}
-                      </Paper>
+                            {shelf.occupied ? (
+                              <>
+                                <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
+                                <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                  {shelf.items} items
+                                </Typography>
+                              </>
+                            ) : (
+                              <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                Empty
+                              </Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+                      ))}
                     </Grid>
-                  ))}
+                  </Grid>
+
+                  {/* Center Aisle */}
+                  <Grid item xs={1} sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    borderLeft: '2px dashed #999',
+                    borderRight: '2px dashed #999'
+                  }}>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        writingMode: 'vertical-rl',
+                        transform: 'rotate(180deg)',
+                        fontWeight: 600,
+                        color: 'text.secondary'
+                      }}
+                    >
+                      MAIN CORRIDOR
+                    </Typography>
+                  </Grid>
+
+                  {/* Right Aisle */}
+                  <Grid item xs={5.5}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+                      Aisle C-D
+                    </Typography>
+                    <Grid container spacing={1}>
+                      {warehouse.shelves.slice(6, 12).map((shelf) => (
+                        <Grid item xs={4} key={shelf.id}>
+                          <Paper
+                            onClick={(e) => handleShelfClick(e, shelf)}
+                            elevation={shelf.occupied ? 3 : 0}
+                            sx={{
+                              p: 1.5,
+                              textAlign: 'center',
+                              bgcolor: shelf.occupied ? green[700] : 'grey.300',
+                              color: shelf.occupied ? 'white' : 'grey.600',
+                              borderRadius: 1,
+                              border: shelf.occupied ? 'none' : '2px dashed grey.400',
+                              minHeight: '80px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              transition: 'all 0.3s',
+                              cursor: shelf.occupied ? 'pointer' : 'default',
+                              '&:hover': shelf.occupied ? {
+                                transform: 'scale(1.08)',
+                                boxShadow: 4,
+                                bgcolor: green[600],
+                              } : {
+                                transform: 'scale(1.05)',
+                                boxShadow: 3
+                              }
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                              {shelf.id}
+                            </Typography>
+                            {shelf.occupied ? (
+                              <>
+                                <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
+                                <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                  {shelf.items} items
+                                </Typography>
+                              </>
+                            ) : (
+                              <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                Empty
+                              </Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Grid>
                 </Grid>
-              </Grid>
-            </Grid>
 
-            {/* Exit */}
-            <Box sx={{ 
-              textAlign: 'center', 
-              mt: 2,
-              pt: 1,
-              borderTop: '3px solid #666'
-            }}>
-              <Typography variant="caption" sx={{ 
-                bgcolor: 'error.main', 
-                color: 'white',
-                px: 2,
-                py: 0.5,
-                borderRadius: 1,
-                fontWeight: 600
-              }}>
-                EXIT / LOADING DOCK
-              </Typography>
-            </Box>
+                {/* Exit */}
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  mt: 2,
+                  pt: 1,
+                  borderTop: '3px solid #666'
+                }}>
+                  <Typography variant="caption" sx={{ 
+                    bgcolor: 'error.main', 
+                    color: 'white',
+                    px: 2,
+                    py: 0.5,
+                    borderRadius: 1,
+                    fontWeight: 600
+                  }}>
+                    EXIT / LOADING DOCK
+                  </Typography>
+                </Box>
 
-            {/* Legend */}
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  bgcolor: green[700], 
-                  borderRadius: 0.5,
-                  mr: 1 
-                }} />
-                <Typography variant="caption">Occupied Shelf (Clickable)</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  bgcolor: 'grey.300',
-                  border: '2px dashed',
-                  borderColor: 'grey.400',
-                  borderRadius: 0.5,
-                  mr: 1 
-                }} />
-                <Typography variant="caption">Empty Shelf</Typography>
-              </Box>
-            </Box>
+                {/* Legend */}
+                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ 
+                      width: 20, 
+                      height: 20, 
+                      bgcolor: green[700], 
+                      borderRadius: 0.5,
+                      mr: 1 
+                    }} />
+                    <Typography variant="caption">Occupied Shelf (Clickable)</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ 
+                      width: 20, 
+                      height: 20, 
+                      bgcolor: 'grey.300',
+                      border: '2px dashed',
+                      borderColor: 'grey.400',
+                      borderRadius: 0.5,
+                      mr: 1 
+                    }} />
+                    <Typography variant="caption">Empty Shelf</Typography>
+                  </Box>
+                </Box>
+              </>
+            )}
           </Paper>
 
           {/* Additional Info */}
@@ -1163,6 +1311,22 @@ const WarehousesPage = () => {
   const navigate = useNavigate();
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
+  const [savedWarehousesState, setSavedWarehousesState] = useState(() => loadSavedWarehouses());
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'savedWarehouses') {
+        setSavedWarehousesState(loadSavedWarehouses());
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    const onCustom = () => setSavedWarehousesState(loadSavedWarehouses());
+    window.addEventListener('savedWarehousesUpdated', onCustom);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('savedWarehousesUpdated', onCustom);
+    };
+  }, []);
   
   const [selectedPage, setSelectedPage] = useState('Warehouses');
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -1213,10 +1377,11 @@ const WarehousesPage = () => {
     { text: 'Statistics', icon: <StatisticsIcon />, path: '/statistics' },
   ];
 
-  // Calculate summary statistics
-  const totalWarehouses = warehousesData.length;
-  const totalCapacity = warehousesData.reduce((sum, wh) => sum + wh.capacity, 0);
-  const totalStock = warehousesData.reduce((sum, wh) => sum + wh.currentStock, 0);
+  // Combine saved warehouses with sample data and calculate summary statistics
+  const allWarehousesData = [...savedWarehousesState, ...warehousesData];
+  const totalWarehouses = allWarehousesData.length;
+  const totalCapacity = allWarehousesData.reduce((sum, wh) => sum + (wh.capacity || 0), 0);
+  const totalStock = allWarehousesData.reduce((sum, wh) => sum + (wh.currentStock || 0), 0);
   const averageUtilization = ((totalStock / totalCapacity) * 100).toFixed(1);
 
   const getUtilizationColor = (utilization) => {
@@ -1512,7 +1677,7 @@ const WarehousesPage = () => {
 
           {/* Warehouses List */}
           <Grid container spacing={{ xs: 2, sm: 3 }}>
-            {warehousesData.map((warehouse) => {
+            {allWarehousesData.map((warehouse) => {
               const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
               
               return (
