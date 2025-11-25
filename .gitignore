@@ -4,3 +4,4 @@ database
 package-lock.json
 database.mv.db
 database.trace.db
+application.properties
