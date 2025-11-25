@@ -1642,7 +1642,6 @@ const WarehousesPage = () => {
             }
             return true;
           });
-          const removedCount = (s.items || 0) - (newProducts.length ? newProducts.reduce((acc, cur) => acc + (cur.quantity || 0), 0) : 0);
           // we already computed removedQty; ensure items reflect total quantity
           const newItems = Math.max(0, (s.items || 0) - removedQty);
           return { ...s, products: newProducts, items: newItems, occupied: newProducts.length > 0 };
