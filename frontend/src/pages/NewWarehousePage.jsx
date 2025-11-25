@@ -361,6 +361,11 @@ const NewWarehousePage = () => {
 
   // --- Mentés / Törlés ---
   const handleSave = () => {
+    if (!shapes || shapes.length === 0) {
+      alert('Please add at least one shelf or wall to the layout before saving.');
+      return;
+    }
+
     if (!warehouseName) {
       alert('Please enter a name for the warehouse.');
       return;
@@ -510,6 +515,7 @@ const NewWarehousePage = () => {
                   variant="contained" 
                   color="primary" 
                   onClick={handleSave}
+                  disabled={shapes.length === 0}
                   fullWidth={false}
                   sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
                 >
