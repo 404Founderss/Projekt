@@ -6,7 +6,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class BackendApplication {
-
 	public static void main(String[] args) {
         Dotenv dotenv = Dotenv.load();
         System.setProperty("DB_USERNAME", dotenv.get("DB_USERNAME"));
@@ -15,6 +14,4 @@ public class BackendApplication {
 
         SpringApplication.run(BackendApplication.class, args);
 	}
-
 }
-    //comment
