@@ -10,6 +10,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Base64;
+import java.io.IOException;
+
 
 import java.util.List;
 import java.util.Map;
@@ -277,6 +283,47 @@ public class ProductController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+    @GetMapping("/{id}/qrcode")
+    public ResponseEntity<byte[]> getProductQRCode(@PathVariable Long id) {
+        try {
+            Product product = productService.findById(id);
+
+            byte[] qrBytes = null;
+
+            // 1) Ha fájlként tárolod → megpróbáljuk betölteni
+            if (product.getQrCode() != null && !product.getQrCode().isEmpty()) {
+                Path qrPath = Paths.get(product.getQrCode());
+                if (Files.exists(qrPath)) {
+                    qrBytes = Files.readAllBytes(qrPath);
+                }
+            }
+
+            // 2) Ha Base64-ben van tárolva → dekódoljuk
+            if (qrBytes == null && product.getQrCode() != null) {
+                try {
+                    qrBytes = Base64.getDecoder().decode(product.getQrCode());
+                } catch (IllegalArgumentException ignore) {
+                    // Nem Base64, átugorjuk
+                }
+            }
+
+            // 3) Ha nincs QR → generáljuk és mentjük
+            if (qrBytes == null) {
+                qrBytes = productService.regenerateQrAndReturnBytes(id);
+            }
+
+            return ResponseEntity.ok()
+                    .header("Content-Type", "image/png")
+                    .body(qrBytes);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
 
     /**
      * Product entitás konvertálása ProductResponse DTO-vá.
