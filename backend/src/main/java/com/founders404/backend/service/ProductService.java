@@ -5,6 +5,9 @@ import com.founders404.backend.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.google.zxing.WriterException;
+import java.io.IOException;
+
 
 import java.util.List;
 
@@ -16,6 +19,7 @@ import java.util.List;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final QRCodeService qrCodeService;
 
     /**
      * Összes termék lekérése.
@@ -110,8 +114,7 @@ public class ProductService {
     }
 
     /**
-     * Új termék létrehozása.
-     * @throws RuntimeException ha SKU vagy vonalkód már létezik
+     * Új termék létrehozása automatikus QR kód generálással.
      */
     @Transactional
     public Product create(Product product) {
@@ -125,8 +128,30 @@ public class ProductService {
             throw new RuntimeException("Product with barcode already exists: " + product.getBarcode());
         }
 
-        return productRepository.save(product);
+        // 1. Termék mentése
+        Product savedProduct = productRepository.save(product);
+
+        // 2. QR kód automatikus generálása
+        try {
+            // OPCIÓ 1: Fájlba mentés (qrcodes/ mappába)
+            String qrFilePath = qrCodeService.saveQRCodeAsFile(savedProduct);
+            savedProduct.setQrCode(qrFilePath);
+
+            // OPCIÓ 2: Base64 string adatbázisba (kommentezd ki OPCIÓ 1-et ha ezt használod)
+            // String qrBase64 = qrCodeService.generateQRCodeAsBase64(savedProduct);
+            // savedProduct.setQrCode(qrBase64);
+
+            // Frissítés QR kóddal
+            productRepository.save(savedProduct);
+
+        } catch (WriterException | IOException e) {
+            // QR kód generálás nem kritikus, logoljuk és folytatjuk
+            System.err.println("QR kód generálás sikertelen termékhez (ID: " + savedProduct.getId() + "): " + e.getMessage());
+        }
+
+        return savedProduct;
     }
+
 
     /**
      * Termék frissítése.
@@ -237,6 +262,38 @@ public class ProductService {
         }
 
         return productRepository.save(product);
+    }
+
+    /**
+     * QR kód újragenerálása létező termékhez.
+     */
+    @Transactional
+    public void regenerateQRCode(Long productId) throws WriterException, IOException {
+        Product product = findById(productId);
+
+        String qrFilePath = qrCodeService.saveQRCodeAsFile(product);
+        product.setQrCode(qrFilePath);
+
+        productRepository.save(product);
+    }
+
+    public byte[] regenerateQrAndReturnBytes(Long productId) {
+        try {
+            Product product = findById(productId);
+
+            // QR generálás
+            byte[] qrBytes = qrCodeService.generateProductQRCode(product);
+
+            // Fájlba is mentjük, hogy később elérhető legyen
+            String qrFilePath = qrCodeService.saveQRCodeAsFile(product);
+            product.setQrCode(qrFilePath);
+            productRepository.save(product);
+
+            return qrBytes;
+
+        } catch (Exception e) {
+            throw new RuntimeException("QR code generation failed: " + e.getMessage());
+        }
     }
 
     /**
