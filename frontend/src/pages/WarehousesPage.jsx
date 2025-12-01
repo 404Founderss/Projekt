@@ -58,8 +58,8 @@ import {
   FilterList as FilterListIcon,
   Info as InfoIcon,
   Warning as WarningIcon,
-  CheckCircle as SuccessIcon,
-  Delete as DeleteIcon,
+  CheckCircle as SuccessIcon
+  ,Delete as DeleteIcon,
   Add as AddIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -281,6 +281,156 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
   );
 };
 
+// Sample product data
+const generateProducts = (shelfId, count) => {
+  const categories = ['Electronics', 'Textiles', 'Food', 'Tools', 'Furniture', 'Books', 'Home & Garden'];
+  const products = [];
+  for (let i = 0; i < count; i++) {
+    const category = categories[Math.floor(Math.random() * categories.length)];
+    products.push({
+      id: `${shelfId}-P${i + 1}`,
+      name: `${category} Product ${i + 1}`,
+      category,
+      sku: `SKU-${shelfId}-${String(i + 1).padStart(4, '0')}`,
+      quantity: Math.floor(Math.random() * 100) + 1,
+      unit: ['pcs', 'boxes', 'kg', 'L'][Math.floor(Math.random() * 4)],
+      status: Math.random() > 0.1 ? 'Available' : 'Reserved'
+    });
+  }
+  return products;
+};
+
+// Sample warehouse data with shelf information
+const warehousesData = [
+  {
+    id: 1,
+    name: 'Central Warehouse',
+    capacity: 10000,
+    currentStock: 7500,
+    lastUpdate: '2025-11-08 14:30',
+    shelves: [
+      { id: 'A1', occupied: true, items: 250, products: generateProducts('A1', 25) },
+      { id: 'A2', occupied: true, items: 180, products: generateProducts('A2', 18) },
+      { id: 'A3', occupied: false, items: 0, products: [] },
+      { id: 'B1', occupied: true, items: 320, products: generateProducts('B1', 32) },
+      { id: 'B2', occupied: true, items: 290, products: generateProducts('B2', 29) },
+      { id: 'B3', occupied: true, items: 150, products: generateProducts('B3', 15) },
+      { id: 'C1', occupied: true, items: 410, products: generateProducts('C1', 41) },
+      { id: 'C2', occupied: false, items: 0, products: [] },
+      { id: 'C3', occupied: true, items: 200, products: generateProducts('C3', 20) },
+      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
+      { id: 'D2', occupied: true, items: 270, products: generateProducts('D2', 27) },
+      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
+    ]
+  },
+  {
+    id: 2,
+    name: 'North Distribution Center',
+    capacity: 15000,
+    currentStock: 12000,
+    lastUpdate: '2025-11-08 13:15',
+    shelves: [
+      { id: 'A1', occupied: true, items: 450, products: generateProducts('A1', 45) },
+      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
+      { id: 'A3', occupied: true, items: 420, products: generateProducts('A3', 42) },
+      { id: 'B1', occupied: true, items: 520, products: generateProducts('B1', 52) },
+      { id: 'B2', occupied: true, items: 490, products: generateProducts('B2', 49) },
+      { id: 'B3', occupied: true, items: 350, products: generateProducts('B3', 35) },
+      { id: 'C1', occupied: true, items: 610, products: generateProducts('C1', 61) },
+      { id: 'C2', occupied: true, items: 580, products: generateProducts('C2', 58) },
+      { id: 'C3', occupied: true, items: 400, products: generateProducts('C3', 40) },
+      { id: 'D1', occupied: true, items: 480, products: generateProducts('D1', 48) },
+      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
+      { id: 'D3', occupied: true, items: 440, products: generateProducts('D3', 44) }
+    ]
+  },
+  {
+    id: 3,
+    name: 'South Storage Facility',
+    capacity: 8000,
+    currentStock: 3200,
+    lastUpdate: '2025-11-08 12:45',
+    shelves: [
+      { id: 'A1', occupied: true, items: 180, products: generateProducts('A1', 18) },
+      { id: 'A2', occupied: false, items: 0, products: [] },
+      { id: 'A3', occupied: false, items: 0, products: [] },
+      { id: 'B1', occupied: true, items: 220, products: generateProducts('B1', 22) },
+      { id: 'B2', occupied: true, items: 190, products: generateProducts('B2', 19) },
+      { id: 'B3', occupied: false, items: 0, products: [] },
+      { id: 'C1', occupied: true, items: 310, products: generateProducts('C1', 31) },
+      { id: 'C2', occupied: false, items: 0, products: [] },
+      { id: 'C3', occupied: false, items: 0, products: [] },
+      { id: 'D1', occupied: true, items: 280, products: generateProducts('D1', 28) },
+      { id: 'D2', occupied: true, items: 170, products: generateProducts('D2', 17) },
+      { id: 'D3', occupied: false, items: 0, products: [] }
+    ]
+  },
+  {
+    id: 4,
+    name: 'East Regional Hub',
+    capacity: 12000,
+    currentStock: 9600,
+    lastUpdate: '2025-11-08 15:00',
+    shelves: [
+      { id: 'A1', occupied: true, items: 350, products: generateProducts('A1', 35) },
+      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
+      { id: 'A3', occupied: true, items: 320, products: generateProducts('A3', 32) },
+      { id: 'B1', occupied: true, items: 420, products: generateProducts('B1', 42) },
+      { id: 'B2', occupied: true, items: 390, products: generateProducts('B2', 39) },
+      { id: 'B3', occupied: true, items: 450, products: generateProducts('B3', 45) },
+      { id: 'C1', occupied: true, items: 510, products: generateProducts('C1', 51) },
+      { id: 'C2', occupied: true, items: 480, products: generateProducts('C2', 48) },
+      { id: 'C3', occupied: true, items: 300, products: generateProducts('C3', 30) },
+      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
+      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
+      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
+    ]
+  }
+];
+
+// Load user-saved warehouses from localStorage (created in NewWarehousePage)
+const loadSavedWarehouses = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
+    if (!Array.isArray(saved) || saved.length === 0) return [];
+
+    return saved.map((s, idx) => {
+      const shapes = (s.layout && Array.isArray(s.layout.shapes)) ? s.layout.shapes : [];
+      // If the saved object already contains shelf metadata, prefer that so edits persist
+      const shelves = Array.isArray(s.shelves)
+        ? s.shelves.map(sh => ({ ...sh, products: Array.isArray(sh.products) ? sh.products : [] }))
+        : shapes.map((shape, i) => {
+            const shelfId = shape.id || `S-${idx}-${i + 1}`;
+            const occupied = shape.type === 'shelf';
+            const approxItems = Math.max(0, Math.floor(((shape.width || 100) * (shape.height || 40)) / 200));
+            return {
+              id: shelfId,
+              occupied,
+              items: occupied ? approxItems : 0,
+              products: occupied ? generateProducts(shelfId, Math.min(20, Math.max(1, approxItems))) : []
+            };
+          });
+
+      return {
+        id: s.id || 100000 + idx,
+        name: s.name || `Saved Warehouse ${idx + 1}`,
+        capacity: 10000,
+        currentStock: shelves.reduce((sum, sh) => sum + (sh.items || 0), 0),
+        lastUpdate: s.createdAt || new Date().toLocaleString(),
+        shelves,
+        layout: { shapes },
+        // keep the original saved object so we can persist updates
+        __rawSaved: s
+      };
+    });
+  } catch (e) {
+    console.error('Failed to load saved warehouses', e);
+    return [];
+  }
+};
+
+// savedWarehouses will be loaded inside the component so UI updates when users save new layouts
+
 // Shelf Items Popover Component
 const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, onClose, onProductSelect, onShelfAddItem, onShelfRemoveItem }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -406,8 +556,8 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
             <Box>
-              <IconButton
-                size="small"
+              <IconButton 
+                size="small" 
                 onClick={onClose}
                 sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}
               >
@@ -415,6 +565,7 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
               </IconButton>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
+              {/* Open Add Product dialog */}
               <Button
                 size="small"
                 variant="contained"
@@ -426,6 +577,8 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
               >
                 Add Product
               </Button>
+
+              {/* Open Remove Product selector dialog */}
               <Button
                 size="small"
                 variant="contained"
@@ -656,13 +809,13 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
       <Dialog open={openRemoveDialog} onClose={() => setOpenRemoveDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Remove Products from Shelf {shelf.id}</DialogTitle>
         <DialogContent>
-          {products.length === 0 ? (
+          {shelf.products.length === 0 ? (
             <Box sx={{ py: 3, textAlign: 'center' }}>
               <Typography color="text.secondary">No products to remove</Typography>
             </Box>
           ) : (
             <List>
-              {products.map((p) => (
+              {shelf.products.map((p) => (
                 <ListItem key={p.id} disablePadding>
                   <ListItemButton onClick={() => toggleRemoveSelection(p.id)}>
                     <ListItemIcon>
@@ -687,6 +840,7 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
           </Button>
         </DialogActions>
       </Dialog>
+
     </Popover>
   );
 };
@@ -914,7 +1068,7 @@ const KonvaLayoutRenderer = ({ shapes = [], onRectClick }) => {
 };
 
 // Warehouse Visual Modal Component
-const WarehouseVisualModal = ({ open, onClose, warehouse, onRefresh }) => {
+const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShelfRemoveItem, onDeleteWarehouse }) => {
   const [selectedShelfAnchor, setSelectedShelfAnchor] = useState(null);
   const [selectedShelf, setSelectedShelf] = useState(null);
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -1072,7 +1226,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onRefresh }) => {
             </Grid>
           </Grid>
 
-          {/* Warehouse Layout */}
+          {/* Warehouse Layout: render Konva floorplan when saved layout exists */}
           <Paper
             elevation={0}
             sx={{
@@ -1090,33 +1244,237 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onRefresh }) => {
               {shapes.length > 0 ? 'Click on any shelf to view its products' : 'No layout available'}
             </Typography>
 
-            {/* If warehouse has saved konva layout, render it; otherwise show message */}
-            {shapes.length > 0 ? (
-              <Box sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' }, position: 'relative' }}>
-                <KonvaLayoutRenderer
-                  shapes={shapes}
-                  onRectClick={(shape) => {
-                    if (!shape || shape.type !== 'shelf') return;
-                    const shelf = displayShelves.find(s => s.id === shape.id) || {
-                      id: shape.id,
-                      occupied: false,
-                      items: 0,
-                      products: []
-                    };
-                    handleShelfClick({ currentTarget: document.querySelector('[role="presentation"]') || document.body }, shelf);
-                  }}
-                />
+            {/* If warehouse has a saved konva layout, render it exactly; otherwise fall back to the grid */}
+            {warehouse.layout && Array.isArray(warehouse.layout.shapes) && warehouse.layout.shapes.length > 0 ? (
+              <Box ref={el => { /* placeholder */ }}>
+                <Box
+                  ref={el => { /* keep placeholder for layout */ }}
+                  sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' }, position: 'relative' }}
+                >
+                      <KonvaLayoutRenderer
+                        shapes={warehouse.layout.shapes}
+                        onRectClick={(shape) => {
+                          // only handle clicks for actual shelves (renderer will already filter non-shelves,
+                          // but double-check here). Non-shelf shapes (walls) won't open popovers.
+                          if (!shape || shape.type !== 'shelf') return;
+                          const shelf = (warehouse.shelves || []).find(s => s.id === shape.id) || {
+                            id: shape.id,
+                            occupied: true,
+                            items: 0,
+                            products: []
+                          };
+                          handleShelfClick({ currentTarget: document.querySelector('[role="presentation"]') || document.body }, shelf);
+                        }}
+                      />
+                </Box>
               </Box>
             ) : (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <WarehouseIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-                <Typography variant="h6" color="text.secondary">
-                  No visual layout available
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Create a warehouse with the visual editor to see it here
-                </Typography>
-              </Box>
+              // fallback: existing grid layout (unchanged)
+              <> 
+                {/* Entrance */}
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  mb: 2,
+                  pb: 1,
+                  borderBottom: '3px solid #666'
+                }}>
+                  <Typography variant="caption" sx={{ 
+                    bgcolor: 'warning.main', 
+                    color: 'white',
+                    px: 2,
+                    py: 0.5,
+                    borderRadius: 1,
+                    fontWeight: 600
+                  }}>
+                    ENTRANCE
+                  </Typography>
+                </Box>
+
+                {/* Shelves Grid (original code preserved) */}
+                <Grid container spacing={2}>
+                  {/* Left Aisle */}
+                  <Grid item xs={5.5}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+                      Aisle A-B
+                    </Typography>
+                    <Grid container spacing={1}>
+                              {warehouse.shelves.slice(0, 6).map((shelf) => (
+                                  <Grid item xs={4} key={shelf.id}>
+                                    <Paper
+                                      onClick={(e) => handleShelfClick(e, shelf)}
+                                      elevation={shelf.occupied ? 3 : 0}
+                                      sx={{
+                                        position: 'relative',
+                                        p: 1.5,
+                                        textAlign: 'center',
+                                        bgcolor: shelf.occupied ? green[700] : 'grey.300',
+                                        color: shelf.occupied ? 'white' : 'grey.600',
+                                        borderRadius: 1,
+                                        border: shelf.occupied ? 'none' : '2px dashed grey.400',
+                                        minHeight: '80px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.3s',
+                                        cursor: shelf.occupied ? 'pointer' : 'default',
+                                        '&:hover': shelf.occupied ? {
+                                          transform: 'scale(1.08)',
+                                          boxShadow: 4,
+                                          bgcolor: green[600],
+                                        } : {
+                                          transform: 'scale(1.05)',
+                                          boxShadow: 3
+                                        }
+                                      }}
+                                    >
+                                      {/* Add/Remove buttons moved to ShelfItemsPopover */}
+
+                                      <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                        {shelf.id}
+                                      </Typography>
+                                      {shelf.occupied ? (
+                                        <>
+                                          <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
+                                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                            {shelf.items} items
+                                          </Typography>
+                                        </>
+                                      ) : (
+                                        <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                          Empty
+                                        </Typography>
+                                      )}
+                                    </Paper>
+                                  </Grid>
+                                ))}
+                    </Grid>
+                  </Grid>
+
+                  {/* Center Aisle */}
+                  <Grid item xs={1} sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    borderLeft: '2px dashed #999',
+                    borderRight: '2px dashed #999'
+                  }}>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        writingMode: 'vertical-rl',
+                        transform: 'rotate(180deg)',
+                        fontWeight: 600,
+                        color: 'text.secondary'
+                      }}
+                    >
+                      MAIN CORRIDOR
+                    </Typography>
+                  </Grid>
+
+                  {/* Right Aisle */}
+                  <Grid item xs={5.5}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
+                      Aisle C-D
+                    </Typography>
+                    <Grid container spacing={1}>
+                      {warehouse.shelves.slice(6, 12).map((shelf) => (
+                        <Grid item xs={4} key={shelf.id}>
+                          <Paper
+                            onClick={(e) => handleShelfClick(e, shelf)}
+                            elevation={shelf.occupied ? 3 : 0}
+                            sx={{
+                              position: 'relative',
+                              p: 1.5,
+                              textAlign: 'center',
+                              bgcolor: shelf.occupied ? green[700] : 'grey.300',
+                              color: shelf.occupied ? 'white' : 'grey.600',
+                              borderRadius: 1,
+                              border: shelf.occupied ? 'none' : '2px dashed grey.400',
+                              minHeight: '80px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              transition: 'all 0.3s',
+                              cursor: shelf.occupied ? 'pointer' : 'default',
+                              '&:hover': shelf.occupied ? {
+                                transform: 'scale(1.08)',
+                                boxShadow: 4,
+                                bgcolor: green[600],
+                              } : {
+                                transform: 'scale(1.05)',
+                                boxShadow: 3
+                              }
+                            }}
+                          >
+                            {/* Add/Remove buttons moved to ShelfItemsPopover */}
+
+                            <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                              {shelf.id}
+                            </Typography>
+                            {shelf.occupied ? (
+                              <>
+                                <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
+                                <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                  {shelf.items} items
+                                </Typography>
+                              </>
+                            ) : (
+                              <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
+                                Empty
+                              </Typography>
+                            )}
+                          </Paper>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Grid>
+                </Grid>
+
+                {/* Exit */}
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  mt: 2,
+                  pt: 1,
+                  borderTop: '3px solid #666'
+                }}>
+                  <Typography variant="caption" sx={{ 
+                    bgcolor: 'error.main', 
+                    color: 'white',
+                    px: 2,
+                    py: 0.5,
+                    borderRadius: 1,
+                    fontWeight: 600
+                  }}>
+                    EXIT / LOADING DOCK
+                  </Typography>
+                </Box>
+
+                {/* Legend */}
+                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ 
+                      width: 20, 
+                      height: 20, 
+                      bgcolor: green[700], 
+                      borderRadius: 0.5,
+                      mr: 1 
+                    }} />
+                    <Typography variant="caption">Occupied Shelf (Clickable)</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ 
+                      width: 20, 
+                      height: 20, 
+                      bgcolor: 'grey.300',
+                      border: '2px dashed',
+                      borderColor: 'grey.400',
+                      borderRadius: 0.5,
+                      mr: 1 
+                    }} />
+                    <Typography variant="caption">Empty Shelf</Typography>
+                  </Box>
+                </Box>
+              </>
             )}
           </Paper>
 
@@ -1148,8 +1506,8 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onRefresh }) => {
         warehouseId={warehouse?.id}
         onClose={handleCloseShelfPopover}
         onProductSelect={handleProductSelect}
-        onShelfAddItem={handleShelfAddItem}
-        onShelfRemoveItem={handleShelfRemoveItem}
+        onShelfAddItem={onShelfAddItem}
+        onShelfRemoveItem={onShelfRemoveItem}
       />
 
       {/* Product Detail Dialog */}
@@ -1167,7 +1525,28 @@ const WarehousesPage = () => {
   const navigate = useNavigate();
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
+  const [savedWarehousesState, setSavedWarehousesState] = useState(() => loadSavedWarehouses());
+  // Keep an editable copy of the built-in/sample warehouses so shelves can be updated in-memory
+  const [sampleWarehousesState, setSampleWarehousesState] = useState(() => warehousesData.map(w => ({
+    ...w,
+    shelves: (w.shelves || []).map(s => ({ ...s, products: Array.isArray(s.products) ? [...s.products] : [] }))
+  })));
 
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'savedWarehouses') {
+        setSavedWarehousesState(loadSavedWarehouses());
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    const onCustom = () => setSavedWarehousesState(loadSavedWarehouses());
+    window.addEventListener('savedWarehousesUpdated', onCustom);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('savedWarehousesUpdated', onCustom);
+    };
+  }, []);
+  
   const [selectedPage, setSelectedPage] = useState('Warehouses');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -1262,24 +1641,129 @@ const WarehousesPage = () => {
     setSelectedWarehouse(null);
   };
 
+  // Navigate to create new warehouse page
   const handleCreateWarehouse = () => {
     navigate('/warehouses/new');
   };
 
-  const handleDeleteWarehouse = async (warehouse) => {
+  // Helper to update a warehouse either in saved state or sample state
+  const updateWarehouseById = (warehouseId, updater) => {
+    // try saved
+    const savedIdx = savedWarehousesState.findIndex(s => String(s.id) === String(warehouseId));
+    if (savedIdx !== -1) {
+      setSavedWarehousesState(prev => {
+        const next = prev.map(p => ({ ...p }));
+        next[savedIdx] = updater({ ...next[savedIdx] });
+        // Persist back to localStorage, preserving original saved shape/layout fields
+        try {
+          const rawSaved = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
+          const updated = rawSaved.map(rs => {
+            if (String(rs.id) === String(warehouseId)) {
+              // merge any updated shelves into a stored 'shelves' key so loader can restore them
+              return { ...rs, shelves: next[savedIdx].shelves, lastUpdate: next[savedIdx].lastUpdate || rs.lastUpdate };
+            }
+            return rs;
+          });
+          localStorage.setItem('savedWarehouses', JSON.stringify(updated));
+        } catch (e) {
+          console.error('Failed to persist saved warehouses', e);
+        }
+        return next;
+      });
+      return;
+    }
+
+    // otherwise update sample warehouses copy
+    setSampleWarehousesState(prev => {
+      const idx = prev.findIndex(w => String(w.id) === String(warehouseId));
+      if (idx === -1) return prev;
+      const next = prev.map(p => ({ ...p }));
+      next[idx] = updater({ ...next[idx] });
+      return next;
+    });
+  };
+
+  const handleDeleteWarehouse = (warehouse) => {
     if (!warehouse) return;
-    try {
-      await warehouseService.delete(warehouse.id);
-      // Reload warehouses after deletion
-      await loadWarehouses();
-      // Close modal if the deleted warehouse was open
-      if (selectedWarehouse && selectedWarehouse.id === warehouse.id) {
+    const id = warehouse.id;
+    // If it's in saved, remove from saved and persist
+    if (savedWarehousesState.some(s => String(s.id) === String(id))) {
+      const next = savedWarehousesState.filter(s => String(s.id) !== String(id));
+      setSavedWarehousesState(next);
+      try {
+        const raw = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
+        const updated = raw.filter(rs => String(rs.id) !== String(id));
+        localStorage.setItem('savedWarehouses', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to delete saved warehouse', e);
+      }
+      // if the deleted warehouse is currently open, close the modal
+      if (selectedWarehouse && String(selectedWarehouse.id) === String(id)) {
         handleCloseModal();
       }
-    } catch (err) {
-      console.error('Error deleting warehouse:', err);
-      setError('Failed to delete warehouse. Please try again.');
+      return;
     }
+
+    // Otherwise remove from sample state
+    setSampleWarehousesState(prev => {
+      const next = prev.filter(w => String(w.id) !== String(id));
+      if (selectedWarehouse && String(selectedWarehouse.id) === String(id)) {
+        handleCloseModal();
+      }
+      return next;
+    });
+  };
+
+  // Add an item to a shelf. Accepts optional `product` object.
+  const handleShelfAddItem = (warehouseId, shelfId, product = null) => {
+    updateWarehouseById(warehouseId, (wh) => {
+      const prod = product || generateProducts(shelfId, 1)[0];
+      const qty = Number(prod.quantity || 1);
+      const shelves = (wh.shelves || []).map(s => {
+        if (String(s.id) === String(shelfId)) {
+          const newProducts = Array.isArray(s.products) ? [...s.products, prod] : [prod];
+          return { ...s, products: newProducts, items: (s.items || 0) + qty, occupied: true };
+        }
+        return s;
+      });
+      const currentStock = (wh.currentStock || 0) + qty;
+      return { ...wh, shelves, currentStock, lastUpdate: new Date().toLocaleString() };
+    });
+  };
+
+  // Remove product(s) from a shelf. `productIds` can be an array of ids to remove.
+  const handleShelfRemoveItem = (warehouseId, shelfId, productIds = null) => {
+    updateWarehouseById(warehouseId, (wh) => {
+      let removedQty = 0;
+      const shelves = (wh.shelves || []).map(s => {
+        if (String(s.id) === String(shelfId)) {
+          if (!Array.isArray(s.products) || s.products.length === 0) return s;
+          if (!productIds) {
+            // fallback: remove last product
+            const last = s.products[s.products.length - 1];
+            const qty = Number(last?.quantity || 1);
+            removedQty += qty;
+            const newProducts = s.products.slice(0, -1);
+            return { ...s, products: newProducts, items: Math.max(0, (s.items || 0) - qty), occupied: newProducts.length > 0 };
+          }
+          // remove selected ids
+          const idSet = new Set(productIds.map(id => String(id)));
+          const newProducts = s.products.filter(p => {
+            if (idSet.has(String(p.id))) {
+              removedQty += Number(p.quantity || 1);
+              return false;
+            }
+            return true;
+          });
+          // we already computed removedQty; ensure items reflect total quantity
+          const newItems = Math.max(0, (s.items || 0) - removedQty);
+          return { ...s, products: newProducts, items: newItems, occupied: newProducts.length > 0 };
+        }
+        return s;
+      });
+      const currentStock = Math.max(0, (wh.currentStock || 0) - removedQty);
+      return { ...wh, shelves, currentStock, lastUpdate: new Date().toLocaleString() };
+    });
   };
 
   const menuItems = [
@@ -1290,11 +1774,12 @@ const WarehousesPage = () => {
     { text: 'Statistics', icon: <StatisticsIcon />, path: '/statistics' },
   ];
 
-  // Calculate summary statistics
-  const totalWarehouses = warehousesData.length;
-  const totalCapacity = warehousesData.reduce((sum, wh) => sum + wh.capacity, 0);
-  const totalStock = warehousesData.reduce((sum, wh) => sum + wh.currentStock, 0);
-  const averageUtilization = totalCapacity > 0 ? ((totalStock / totalCapacity) * 100).toFixed(1) : '0.0';
+  // Combine saved warehouses with editable sample data and calculate summary statistics
+  const allWarehousesData = [...savedWarehousesState, ...sampleWarehousesState];
+  const totalWarehouses = allWarehousesData.length;
+  const totalCapacity = allWarehousesData.reduce((sum, wh) => sum + (wh.capacity || 0), 0);
+  const totalStock = allWarehousesData.reduce((sum, wh) => sum + (wh.currentStock || 0), 0);
+  const averageUtilization = ((totalStock / totalCapacity) * 100).toFixed(1);
 
   const getUtilizationColor = (utilization) => {
     if (utilization >= 80) return 'error';
@@ -1494,26 +1979,26 @@ const WarehousesPage = () => {
             width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
           }}
         >
-          <Toolbar />
+          <Toolbar /> 
+          
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                    <Typography 
+                      variant="h4" 
+                      gutterBottom 
+                      sx={{ 
+                        fontWeight: 700,
+                        fontSize: { xs: '1.75rem', sm: '2.125rem' }
+                      }}
+                    >
+                      Warehouses
+                    </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-            <Typography
-              variant="h4"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                fontSize: { xs: '1.75rem', sm: '2.125rem' }
-              }}
-            >
-              Warehouses
-            </Typography>
-
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={handleCreateWarehouse}>
-                Create Warehouse
-              </Button>
-            </Box>
-          </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={handleCreateWarehouse}>
+                        Create Warehouse
+                      </Button>
+                    </Box>
+                  </Box>
 
           {/* Summary Statistics */}
           <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
@@ -1609,20 +2094,8 @@ const WarehousesPage = () => {
           )}
 
           {/* Warehouses List */}
-          {!loading && !error && (
-            <Grid container spacing={{ xs: 2, sm: 3 }}>
-              {warehousesData.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 8, width: '100%' }}>
-                  <WarehouseIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-                  <Typography variant="h6" color="text.secondary">
-                    No warehouses found
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Create your first warehouse to get started
-                  </Typography>
-                </Box>
-              ) : (
-                warehousesData.map((warehouse) => {
+          <Grid container spacing={{ xs: 2, sm: 3 }}>
+            {allWarehousesData.map((warehouse) => {
               const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
 
               return (
@@ -1688,30 +2161,26 @@ const WarehousesPage = () => {
                       <Typography variant="caption" color="text.secondary">
                         Last Update: {warehouse.lastUpdate || warehouse.updatedAt || 'N/A'}
                       </Typography>
-
-                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption" sx={{
-                          color: 'primary.main',
-                          fontWeight: 600,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.5
-                        }}>
-                          Click to view layout →
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setWarehouseToDelete(warehouse);
-                            setDeleteConfirmOpen(true);
-                          }}
-                          sx={{ ml: 1 }}
-                          title="Delete warehouse"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
+                      
+                              <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="caption" sx={{ 
+                                  color: 'primary.main', 
+                                  fontWeight: 600,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5
+                                }}>
+                                  Click to view layout →
+                                </Typography>
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => { e.stopPropagation(); setWarehouseToDelete(warehouse); setDeleteConfirmOpen(true); }}
+                                  sx={{ ml: 1 }}
+                                  title="Delete warehouse"
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Box>
                     </CardContent>
                   </Card>
                 </Grid>
@@ -1729,7 +2198,9 @@ const WarehousesPage = () => {
         open={modalOpen}
         onClose={handleCloseModal}
         warehouse={selectedWarehouse}
-        onRefresh={loadWarehouses}
+        onShelfAddItem={handleShelfAddItem}
+        onShelfRemoveItem={handleShelfRemoveItem}
+        onDeleteWarehouse={handleDeleteWarehouse}
       />
 
       {/* Delete confirmation dialog */}

@@ -361,36 +361,34 @@ const NewWarehousePage = () => {
   };
 
   // --- Mentés / Törlés ---
-  const handleSave = async () => {
+  const handleSave = () => {
+    if (!shapes || shapes.length === 0) {
+      alert('Please add at least one shelf or wall to the layout before saving.');
+      return;
+    }
+
     if (!warehouseName) {
       alert('Please enter a name for the warehouse.');
       return;
     }
+    const dataToSave = {
+      id: `W-${Date.now()}`,
+      name: warehouseName,
+      layout: { shapes },
+      createdAt: new Date().toISOString()
+    };
 
     try {
-      const warehouseData = {
-        name: warehouseName,
-        companyId: 1, // TODO: Get from user context or selection
-        code: `WH-${Date.now()}`, // Generate unique code
-        address: '',
-        city: '',
-        postalCode: '',
-        country: '',
-        email: '',
-        phone: '',
-        managerId: null,
-        capacity: 10000,
-        unit: 'pcs',
-        description: 'Created from visual editor',
-        floorPlanData: JSON.stringify(shapes) // Save the visual layout
-      };
-
-      const response = await warehouseService.create(warehouseData);
-      alert(`Warehouse '${warehouseName}' saved successfully with ID: ${response.data.id}!`);
-      navigate('/warehouses');
-    } catch (error) {
-      console.error('Error saving warehouse:', error);
-      alert(`Failed to save warehouse: ${error.response?.data?.error || error.message}`);
+      const existing = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
+      existing.push(dataToSave);
+      localStorage.setItem('savedWarehouses', JSON.stringify(existing));
+      console.log('--- WAREHOUSE SAVED (KONVA DATA) ---', dataToSave);
+      // notify other parts of the app in the same tab
+      try { window.dispatchEvent(new Event('savedWarehousesUpdated')); } catch (e) { /* ignore */ }
+      alert(`Warehouse '${warehouseName}' saved! It will appear in Warehouses list.`);
+    } catch (err) {
+      console.error('Failed to save warehouse', err);
+      alert('Failed to save warehouse. See console for details.');
     }
   };
 
@@ -518,6 +516,7 @@ const NewWarehousePage = () => {
                   variant="contained" 
                   color="primary" 
                   onClick={handleSave}
+                  disabled={shapes.length === 0}
                   fullWidth={false}
                   sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
                 >
