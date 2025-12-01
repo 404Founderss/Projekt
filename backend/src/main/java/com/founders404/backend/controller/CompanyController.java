@@ -27,15 +27,14 @@ public class CompanyController {
 
     /**
      * Összes cég lekérése szűrési lehetőségekkel.
-     * GET /api/companies?active=true&search=tech&city=Budapest&subscriptionPlan=PRO
+     * GET /api/companies?active=true&search=tech&city=Budapest&country=Hungary
      */
     @GetMapping
     public ResponseEntity<List<CompanyResponse>> getAllCompanies(
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String city,
-            @RequestParam(required = false) String country,
-            @RequestParam(required = false) Company.SubscriptionPlan subscriptionPlan) {
+            @RequestParam(required = false) String country) {
 
         List<Company> companies;
 
@@ -52,9 +51,6 @@ public class CompanyController {
         } else if (country != null && !country.isEmpty()) {
             // Ország szerint
             companies = companyService.findByCountry(country);
-        } else if (subscriptionPlan != null) {
-            // Előfizetési csomag szerint
-            companies = companyService.findBySubscriptionPlan(subscriptionPlan);
         } else if (active != null && active) {
             // Csak aktívak
             companies = companyService.findAllActive();
@@ -116,33 +112,6 @@ public class CompanyController {
     }
 
     /**
-     * Lejárt előfizetésű cégek lekérése.
-     * GET /api/companies/subscriptions/expired
-     */
-    @GetMapping("/subscriptions/expired")
-    public ResponseEntity<List<CompanyResponse>> getExpiredSubscriptions() {
-        List<Company> companies = companyService.findExpiredSubscriptions();
-        List<CompanyResponse> response = companies.stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Hamarosan lejáró előfizetések lekérése.
-     * GET /api/companies/subscriptions/expiring?days=30
-     */
-    @GetMapping("/subscriptions/expiring")
-    public ResponseEntity<List<CompanyResponse>> getExpiringSubscriptions(
-            @RequestParam(defaultValue = "30") int days) {
-        List<Company> companies = companyService.findExpiringSubscriptions(days);
-        List<CompanyResponse> response = companies.stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(response);
-    }
-
-    /**
      * Új cég létrehozása.
      * POST /api/companies
      * Body: CreateCompanyRequest
@@ -161,10 +130,6 @@ public class CompanyController {
             company.setEmail(request.getEmail());
             company.setPhone(request.getPhone());
             company.setIsActive(true);
-            company.setSubscriptionPlan(request.getSubscriptionPlan() != null
-                    ? request.getSubscriptionPlan()
-                    : Company.SubscriptionPlan.BASIC);
-            company.setSubscriptionExpiresAt(request.getSubscriptionExpiresAt());
 
             Company savedCompany = companyService.create(company);
 
@@ -197,46 +162,10 @@ public class CompanyController {
             companyDetails.setEmail(request.getEmail());
             companyDetails.setPhone(request.getPhone());
             companyDetails.setIsActive(request.getIsActive());
-            companyDetails.setSubscriptionPlan(request.getSubscriptionPlan());
-            companyDetails.setSubscriptionExpiresAt(request.getSubscriptionExpiresAt());
 
             Company updatedCompany = companyService.update(id, companyDetails);
 
             return ResponseEntity.ok(convertToResponse(updatedCompany));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    /**
-     * Előfizetés meghosszabbítása.
-     * PATCH /api/companies/{id}/subscription/extend?days=365
-     */
-    @PatchMapping("/{id}/subscription/extend")
-    public ResponseEntity<Object> extendSubscription(
-            @PathVariable Long id,
-            @RequestParam int days) {
-        try {
-            Company company = companyService.extendSubscription(id, days);
-            return ResponseEntity.ok(convertToResponse(company));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
-
-    /**
-     * Előfizetési csomag váltása.
-     * PATCH /api/companies/{id}/subscription/plan?plan=PRO
-     */
-    @PatchMapping("/{id}/subscription/plan")
-    public ResponseEntity<Object> changeSubscriptionPlan(
-            @PathVariable Long id,
-            @RequestParam Company.SubscriptionPlan plan) {
-        try {
-            Company company = companyService.changeSubscriptionPlan(id, plan);
-            return ResponseEntity.ok(convertToResponse(company));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
@@ -289,8 +218,6 @@ public class CompanyController {
                 company.getEmail(),
                 company.getPhone(),
                 company.getIsActive(),
-                company.getSubscriptionPlan(),
-                company.getSubscriptionExpiresAt(),
                 company.getCreatedAt(),
                 company.getUpdatedAt()
         );

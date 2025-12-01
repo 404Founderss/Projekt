@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -54,13 +53,6 @@ public class Company {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "subscription_plan")
-    private SubscriptionPlan subscriptionPlan = SubscriptionPlan.BASIC;
-
-    @Column(name = "subscription_expires_at")
-    private LocalDate subscriptionExpiresAt;
-
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -76,14 +68,5 @@ public class Company {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * Előfizetési csomagok enum.
-     */
-    public enum SubscriptionPlan {
-        BASIC,
-        PRO,
-        ENTERPRISE
     }
 }

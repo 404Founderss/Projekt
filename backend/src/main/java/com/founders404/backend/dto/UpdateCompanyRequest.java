@@ -1,13 +1,10 @@
 package com.founders404.backend.dto;
 
-import com.founders404.backend.model.Company;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -42,8 +39,4 @@ public class UpdateCompanyRequest {
     private String phone;
 
     private Boolean isActive;
-
-    private Company.SubscriptionPlan subscriptionPlan;
-
-    private LocalDate subscriptionExpiresAt;
 }
