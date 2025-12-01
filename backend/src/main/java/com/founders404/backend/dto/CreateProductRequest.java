@@ -19,6 +19,8 @@ public class CreateProductRequest {
 
     private Long supplierId;
 
+    private Long shelfId;
+
     @NotBlank(message = "Product name is required")
     @Size(max = 200, message = "Name must not exceed 200 characters")
     private String name;

@@ -33,6 +33,13 @@ Product {
     @Column(name = "supplier_id")
     private Long supplierId;
 
+    /**
+     * Polc, ahol a termék tárolva van (opcionális).
+     * Ha null, akkor nincs hozzárendelve polchoz.
+     */
+    @Column(name = "shelf_id")
+    private Long shelfId;
+
     @Column(length = 200, nullable = false)
     private String name;
 

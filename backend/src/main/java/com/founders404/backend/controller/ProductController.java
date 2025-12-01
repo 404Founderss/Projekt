@@ -162,6 +162,7 @@ public class ProductController {
             product.setCompanyId(request.getCompanyId());
             product.setCategoryId(request.getCategoryId());
             product.setSupplierId(request.getSupplierId());
+            product.setShelfId(request.getShelfId());
             product.setName(request.getName());
             product.setSku(request.getSku());
             product.setBarcode(request.getBarcode());
