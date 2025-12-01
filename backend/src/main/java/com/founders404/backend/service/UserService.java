@@ -65,4 +65,52 @@ public class UserService {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
+
+    /**
+     * Felhasználó keresése ID alapján.
+     */
+    public User findById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    /**
+     * Profil frissítése.
+     */
+    public User updateProfile(String username, String email) {
+        User user = findByUsername(username);
+
+        // Email egyediség ellenőrzés
+        if (!user.getEmail().equals(email) && userRepository.existsByEmail(email)) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        user.setEmail(email);
+        return userRepository.save(user);
+    }
+
+    /**
+     * Jelszó változtatás.
+     */
+    public void changePassword(String username, String oldPassword, String newPassword) {
+        User user = findByUsername(username);
+
+        // Régi jelszó ellenőrzése
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new RuntimeException("Old password is incorrect");
+        }
+
+        // Új jelszó hash-elése és mentése
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    /**
+     * Profilkép URL frissítése.
+     */
+    public User updateProfilePicture(String username, String profilePictureUrl) {
+        User user = findByUsername(username);
+        user.setProfilePicture(profilePictureUrl);
+        return userRepository.save(user);
+    }
 }

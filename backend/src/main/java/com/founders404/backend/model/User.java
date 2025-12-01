@@ -41,6 +41,9 @@ public class User {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    @Column(name = "profile_picture")
+    private String profilePicture;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
