@@ -1,77 +1,79 @@
-// src/context/AuthContext.js
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext();
-
-// Kulcs, ami alatt a localStorage-ban tároljuk a felhasználót
 const USER_STORAGE_KEY = 'raktar_user_session';
+const TOKEN_STORAGE_KEY = 'jwt_token';
 
 export const AuthProvider = ({ children }) => {
-  // Ez a 'loading' a BEJELENTKEZÉS GOMB-hoz kell
   const [loading, setLoading] = useState(false);
-  
   const [user, setUser] = useState(null);
-
-  // ÚJ: Ez az 'isInitializing' a VÉDETT ÚTVONAL-hoz (ProtectedRoute) kell
-  // Azt jelzi, hogy az alkalmazás indulásakor még ellenőrizzük,
-  // hogy van-e már bejelentkezett felhasználó a localStorage-ban.
   const [isInitializing, setIsInitializing] = useState(true);
 
-  // ÚJ: Ez a useEffect lefut egyszer, az alkalmazás indulásakor
   useEffect(() => {
     try {
-      // 1. Megpróbáljuk kiolvasni a felhasználót a tárolóból
       const storedUser = localStorage.getItem(USER_STORAGE_KEY);
-      
-      if (storedUser) {
-        // 2. Ha van, beállítjuk az állapotba
+      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+
+      if (storedUser && token) {
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
       console.error("Hiba a felhasználói munkamenet olvasásakor:", error);
-      // Hiba esetén töröljük az esetleges hibás adatot
       localStorage.removeItem(USER_STORAGE_KEY);
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
     } finally {
-      // 3. Bárhogy is volt, az ellenőrzés kész.
-      // Ezzel jelezzük a ProtectedRoute-nak, hogy eldöntheti, mit tegyen.
       setIsInitializing(false);
     }
-  }, []); // Az üres [] biztosítja, hogy csak egyszer fusson le
+  }, []);
 
   const login = async (data) => {
     setLoading(true);
 
-    const STATIC_USERNAME = 'admin';
-    const STATIC_PASSWORD = 'admin';
+    try {
+      // Valódi API hívás a backend felé
+      const response = await api.post('/api/auth/login', {
+        username: data.username,
+        password: data.password
+      });
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      // Backend LoginResponse: { token, username, role }
+      const { token, username, role } = response.data;
 
-    if (data.username === STATIC_USERNAME && data.password === STATIC_PASSWORD) {
-      const userData = { username: data.username, name: 'Admin Felhasználó' }; // A felhasználói objektum
-      
-      // ÚJ: Sikeres bejelentkezéskor mentjük a localStorage-ba
+      // Felhasználói objektum összeállítása
+      const userData = {
+        username: username,
+        role: role
+      };
+
+      // Token és user mentése
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
-      
+
       setUser(userData);
       setLoading(false);
       return { success: true };
-    } else {
+
+    } catch (error) {
       setLoading(false);
-      return { success: false, error: 'Hibás felhasználónév vagy jelszó.' };
+      console.error('Login error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || error.response?.data?.message || 'Hibás felhasználónév vagy jelszó.'
+      };
     }
   };
-  
+
   const logout = () => {
-    // ÚJ: Kijelentkezéskor töröljük a localStorage-ból
     localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     setUser(null);
   };
 
   const value = {
     login,
-    loading,       
-    isInitializing, 
+    loading,
+    isInitializing,
     user,
     logout,
   };

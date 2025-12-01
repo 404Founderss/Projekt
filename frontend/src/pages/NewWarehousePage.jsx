@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { warehouseService } from '../services/warehouseService';
 import {
   Box, Drawer, AppBar, Toolbar, List, ListItem, ListItemButton,
   ListItemIcon, ListItemText, Typography, IconButton, Avatar,
@@ -360,15 +361,37 @@ const NewWarehousePage = () => {
   };
 
   // --- Mentés / Törlés ---
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!warehouseName) {
       alert('Please enter a name for the warehouse.');
       return;
     }
-    const dataToSave = { name: warehouseName, layout: shapes };
-    console.log('--- WAREHOUSE SAVED (KONVA DATA) ---');
-    console.log(dataToSave);
-    alert(`Warehouse '${warehouseName}' saved! Check the console (F12) for the data.`);
+
+    try {
+      const warehouseData = {
+        name: warehouseName,
+        companyId: 1, // TODO: Get from user context or selection
+        code: `WH-${Date.now()}`, // Generate unique code
+        address: '',
+        city: '',
+        postalCode: '',
+        country: '',
+        email: '',
+        phone: '',
+        managerId: null,
+        capacity: 10000,
+        unit: 'pcs',
+        description: 'Created from visual editor',
+        floorPlanData: JSON.stringify(shapes) // Save the visual layout
+      };
+
+      const response = await warehouseService.create(warehouseData);
+      alert(`Warehouse '${warehouseName}' saved successfully with ID: ${response.data.id}!`);
+      navigate('/warehouses');
+    } catch (error) {
+      console.error('Error saving warehouse:', error);
+      alert(`Failed to save warehouse: ${error.response?.data?.error || error.message}`);
+    }
   };
 
   const handleClear = () => {

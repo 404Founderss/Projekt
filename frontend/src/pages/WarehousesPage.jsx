@@ -1,6 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { warehouseService } from '../services/warehouseService';
+import { shelfService } from '../services/shelfService';
+import { productService } from '../services/productService';
 import {
   Box,
   Drawer,
@@ -33,6 +36,7 @@ import {
   Button,
   TextField,
   Alert,
+  Checkbox,
   Popover,
   Stack,
   Menu,
@@ -54,10 +58,13 @@ import {
   FilterList as FilterListIcon,
   Info as InfoIcon,
   Warning as WarningIcon,
-  CheckCircle as SuccessIcon
+  CheckCircle as SuccessIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
+import { Stage, Layer, Rect } from 'react-konva';
 
 const drawerWidth = 260;
 
@@ -104,22 +111,6 @@ const sampleNotifications = [
     timestamp: '2 hours ago',
     read: true
   },
-  {
-    id: 4,
-    type: 'warning',
-    title: 'Inventory Discrepancy',
-    message: 'Count mismatch detected in warehouse D - aisle B',
-    timestamp: '1 day ago',
-    read: true
-  },
-  {
-    id: 5,
-    type: 'success',
-    title: 'System Update Complete',
-    message: 'Warehouse management system updated to version 2.5.1',
-    timestamp: '3 days ago',
-    read: true
-  }
 ];
 
 // Notification Menu Component
@@ -180,9 +171,9 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Notifications
           </Typography>
-          <Chip 
-            label={unreadCount} 
-            size="small" 
+          <Chip
+            label={unreadCount}
+            size="small"
             color="error"
             sx={{ fontWeight: 700 }}
           />
@@ -290,136 +281,59 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
   );
 };
 
-// Sample product data
-const generateProducts = (shelfId, count) => {
-  const categories = ['Electronics', 'Textiles', 'Food', 'Tools', 'Furniture', 'Books', 'Home & Garden'];
-  const products = [];
-  for (let i = 0; i < count; i++) {
-    const category = categories[Math.floor(Math.random() * categories.length)];
-    products.push({
-      id: `${shelfId}-P${i + 1}`,
-      name: `${category} Product ${i + 1}`,
-      category,
-      sku: `SKU-${shelfId}-${String(i + 1).padStart(4, '0')}`,
-      quantity: Math.floor(Math.random() * 100) + 1,
-      unit: ['pcs', 'boxes', 'kg', 'L'][Math.floor(Math.random() * 4)],
-      status: Math.random() > 0.1 ? 'Available' : 'Reserved'
-    });
-  }
-  return products;
-};
-
-// Sample warehouse data with shelf information
-const warehousesData = [
-  {
-    id: 1,
-    name: 'Central Warehouse',
-    capacity: 10000,
-    currentStock: 7500,
-    lastUpdate: '2025-11-08 14:30',
-    shelves: [
-      { id: 'A1', occupied: true, items: 250, products: generateProducts('A1', 25) },
-      { id: 'A2', occupied: true, items: 180, products: generateProducts('A2', 18) },
-      { id: 'A3', occupied: false, items: 0, products: [] },
-      { id: 'B1', occupied: true, items: 320, products: generateProducts('B1', 32) },
-      { id: 'B2', occupied: true, items: 290, products: generateProducts('B2', 29) },
-      { id: 'B3', occupied: true, items: 150, products: generateProducts('B3', 15) },
-      { id: 'C1', occupied: true, items: 410, products: generateProducts('C1', 41) },
-      { id: 'C2', occupied: false, items: 0, products: [] },
-      { id: 'C3', occupied: true, items: 200, products: generateProducts('C3', 20) },
-      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
-      { id: 'D2', occupied: true, items: 270, products: generateProducts('D2', 27) },
-      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
-    ]
-  },
-  {
-    id: 2,
-    name: 'North Distribution Center',
-    capacity: 15000,
-    currentStock: 12000,
-    lastUpdate: '2025-11-08 13:15',
-    shelves: [
-      { id: 'A1', occupied: true, items: 450, products: generateProducts('A1', 45) },
-      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
-      { id: 'A3', occupied: true, items: 420, products: generateProducts('A3', 42) },
-      { id: 'B1', occupied: true, items: 520, products: generateProducts('B1', 52) },
-      { id: 'B2', occupied: true, items: 490, products: generateProducts('B2', 49) },
-      { id: 'B3', occupied: true, items: 350, products: generateProducts('B3', 35) },
-      { id: 'C1', occupied: true, items: 610, products: generateProducts('C1', 61) },
-      { id: 'C2', occupied: true, items: 580, products: generateProducts('C2', 58) },
-      { id: 'C3', occupied: true, items: 400, products: generateProducts('C3', 40) },
-      { id: 'D1', occupied: true, items: 480, products: generateProducts('D1', 48) },
-      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
-      { id: 'D3', occupied: true, items: 440, products: generateProducts('D3', 44) }
-    ]
-  },
-  {
-    id: 3,
-    name: 'South Storage Facility',
-    capacity: 8000,
-    currentStock: 3200,
-    lastUpdate: '2025-11-08 12:45',
-    shelves: [
-      { id: 'A1', occupied: true, items: 180, products: generateProducts('A1', 18) },
-      { id: 'A2', occupied: false, items: 0, products: [] },
-      { id: 'A3', occupied: false, items: 0, products: [] },
-      { id: 'B1', occupied: true, items: 220, products: generateProducts('B1', 22) },
-      { id: 'B2', occupied: true, items: 190, products: generateProducts('B2', 19) },
-      { id: 'B3', occupied: false, items: 0, products: [] },
-      { id: 'C1', occupied: true, items: 310, products: generateProducts('C1', 31) },
-      { id: 'C2', occupied: false, items: 0, products: [] },
-      { id: 'C3', occupied: false, items: 0, products: [] },
-      { id: 'D1', occupied: true, items: 280, products: generateProducts('D1', 28) },
-      { id: 'D2', occupied: true, items: 170, products: generateProducts('D2', 17) },
-      { id: 'D3', occupied: false, items: 0, products: [] }
-    ]
-  },
-  {
-    id: 4,
-    name: 'East Regional Hub',
-    capacity: 12000,
-    currentStock: 9600,
-    lastUpdate: '2025-11-08 15:00',
-    shelves: [
-      { id: 'A1', occupied: true, items: 350, products: generateProducts('A1', 35) },
-      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
-      { id: 'A3', occupied: true, items: 320, products: generateProducts('A3', 32) },
-      { id: 'B1', occupied: true, items: 420, products: generateProducts('B1', 42) },
-      { id: 'B2', occupied: true, items: 390, products: generateProducts('B2', 39) },
-      { id: 'B3', occupied: true, items: 450, products: generateProducts('B3', 45) },
-      { id: 'C1', occupied: true, items: 510, products: generateProducts('C1', 51) },
-      { id: 'C2', occupied: true, items: 480, products: generateProducts('C2', 48) },
-      { id: 'C3', occupied: true, items: 300, products: generateProducts('C3', 30) },
-      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
-      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
-      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
-    ]
-  }
-];
-
 // Shelf Items Popover Component
-const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onProductSelect }) => {
+const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, onClose, onProductSelect, onShelfAddItem, onShelfRemoveItem }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [products, setProducts] = useState([]);
+
+  // Load products when shelf changes or popover opens
+  useEffect(() => {
+    if (open && shelf && shelf.id) {
+      // If products are already loaded in shelf object, use them
+      if (shelf.products && shelf.products.length > 0) {
+        setProducts(shelf.products);
+      } else {
+        // Otherwise, fetch products from API
+        loadShelfProducts();
+      }
+    }
+  }, [open, shelf]);
+
+  const loadShelfProducts = async () => {
+    if (!shelf || !shelf.id) return;
+
+    try {
+      setLoadingProducts(true);
+      const response = await shelfService.getProducts(shelf.id);
+      setProducts(response.data || []);
+    } catch (err) {
+      console.error('Error loading shelf products:', err);
+      setProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
 
   const filteredProducts = useMemo(() => {
-    if (!shelf) return [];
-    return shelf.products.filter((product) => {
-      const matchesSearch = 
+    if (!products || products.length === 0) return [];
+    return products.filter((product) => {
+      const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.sku.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
       const matchesStatus = filterStatus === 'all' || product.status === filterStatus;
       return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [shelf, searchTerm, filterCategory, filterStatus]);
+  }, [products, searchTerm, filterCategory, filterStatus]);
 
   const categories = useMemo(() => {
-    if (!shelf) return [];
-    const uniqueCategories = new Set(shelf.products.map(p => p.category));
+    if (!products || products.length === 0) return [];
+    const uniqueCategories = new Set(products.map(p => p.category));
     return Array.from(uniqueCategories);
-  }, [shelf]);
+  }, [products]);
 
   const handleResetFilters = () => {
     setSearchTerm('');
@@ -427,7 +341,36 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
     setFilterStatus('all');
   };
 
+  // Local dialog state for adding/removing products from this shelf
+  const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openRemoveDialog, setOpenRemoveDialog] = useState(false);
+  const [removeSelection, setRemoveSelection] = useState(new Set());
+
   if (!shelf) return null;
+
+  // Handlers for remove-selection toggles
+  const toggleRemoveSelection = (productId) => {
+    setRemoveSelection(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId); else next.add(productId);
+      return next;
+    });
+  };
+
+  const handleConfirmRemove = () => {
+    if (onShelfRemoveItem && removeSelection.size > 0) {
+      onShelfRemoveItem(warehouseId, shelf.id, Array.from(removeSelection));
+    }
+    setRemoveSelection(new Set());
+    setOpenRemoveDialog(false);
+    onClose && onClose();
+  };
+
+  const handleAddProductSubmit = (product) => {
+    if (onShelfAddItem) onShelfAddItem(warehouseId, shelf.id, product);
+    setOpenAddDialog(false);
+    onClose && onClose();
+  };
 
   return (
     <Popover
@@ -461,16 +404,44 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
               {warehouseName}
             </Typography>
           </Box>
-          <IconButton 
-            size="small" 
-            onClick={onClose}
-            sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+            <Box>
+              <IconButton
+                size="small"
+                onClick={onClose}
+                sx={{ color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                size="small"
+                variant="contained"
+                sx={{ bgcolor: green[600], color: 'white', '&:hover': { bgcolor: green[700] } }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenAddDialog(true);
+                }}
+              >
+                Add Product
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                sx={{ bgcolor: 'error.main', color: 'white', '&:hover': { bgcolor: 'error.dark' } }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenRemoveDialog(true);
+                }}
+              >
+                Remove Product
+              </Button>
+            </Box>
+          </Box>
         </Box>
-        <Chip 
-          label={`${shelf.products.length} Products`}
+        <Chip
+          label={loadingProducts ? 'Loading...' : `${products.length} Products`}
           size="small"
           sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600 }}
         />
@@ -561,12 +532,19 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
 
           {/* Results Summary */}
           <Typography variant="caption" color="text.secondary">
-            Showing {filteredProducts.length} of {shelf.products.length} products
+            Showing {filteredProducts.length} of {products.length} products
           </Typography>
         </Stack>
 
         {/* Products List */}
-        {filteredProducts.length > 0 ? (
+        {loadingProducts ? (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <CircularProgress size={32} />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              Loading products...
+            </Typography>
+          </Box>
+        ) : filteredProducts.length > 0 ? (
           <Stack spacing={1}>
             {filteredProducts.map((product) => (
               <Paper
@@ -631,11 +609,84 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
           <Box sx={{ textAlign: 'center', py: 3 }}>
             <InventoryIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
             <Typography color="text.secondary">
-              {shelf.products.length === 0 ? 'No products on this shelf' : 'No matching products found'}
+              {products.length === 0 ? 'No products on this shelf' : 'No matching products found'}
             </Typography>
           </Box>
         )}
       </Box>
+
+      {/* Add Product Dialog */}
+      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add Product to Shelf {shelf.id}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
+            <TextField label="Product Name" size="small" id="ap-name" />
+            <TextField label="SKU" size="small" id="ap-sku" />
+            <TextField label="Category" size="small" id="ap-cat" />
+            <TextField label="Quantity" size="small" id="ap-qty" type="number" defaultValue={1} />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              const name = document.getElementById('ap-name')?.value || `New Product`;
+              const sku = document.getElementById('ap-sku')?.value || `SKU-${shelf.id}-${Date.now()}`;
+              const category = document.getElementById('ap-cat')?.value || 'General';
+              const qty = Math.max(0, Number(document.getElementById('ap-qty')?.value) || 1);
+              const product = {
+                id: sku,
+                name,
+                category,
+                sku,
+                quantity: qty,
+                unit: 'pcs',
+                status: 'Available'
+              };
+              handleAddProductSubmit(product);
+            }}
+          >
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Remove Product Dialog */}
+      <Dialog open={openRemoveDialog} onClose={() => setOpenRemoveDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Remove Products from Shelf {shelf.id}</DialogTitle>
+        <DialogContent>
+          {products.length === 0 ? (
+            <Box sx={{ py: 3, textAlign: 'center' }}>
+              <Typography color="text.secondary">No products to remove</Typography>
+            </Box>
+          ) : (
+            <List>
+              {products.map((p) => (
+                <ListItem key={p.id} disablePadding>
+                  <ListItemButton onClick={() => toggleRemoveSelection(p.id)}>
+                    <ListItemIcon>
+                      <Checkbox edge="start" checked={removeSelection.has(p.id)} tabIndex={-1} disableRipple />
+                    </ListItemIcon>
+                    <ListItemText primary={p.name} secondary={`${p.sku} — ${p.quantity} ${p.unit || ''}`} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setRemoveSelection(new Set()); setOpenRemoveDialog(false); }}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => handleConfirmRemove()}
+            disabled={removeSelection.size === 0}
+          >
+            Remove Selected
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Popover>
   );
 };
@@ -656,30 +707,18 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
       setQrUrl(null);
       if (!open) return;
 
-      // Fetch QR code when dialog opens. Use a local objectUrl variable
-      // so cleanup doesn't depend on component state (avoids eslint missing-deps).
+      // Fetch QR code when dialog opens
       let objectUrl = null;
       const fetchQr = async () => {
         if (!product) return;
         setLoadingQr(true);
         try {
-          const res = await fetch(`/api/products/${encodeURIComponent(product.id)}/qrcode`);
-          if (!res.ok) throw new Error('Failed to fetch QR');
-
-          const contentType = res.headers.get('content-type') || '';
-          if (contentType.startsWith('image/')) {
-            const blob = await res.blob();
-            objectUrl = URL.createObjectURL(blob);
-            setQrUrl(objectUrl);
-          } else {
-            const json = await res.json();
-            if (json && json.qrcodeBase64) {
-              setQrUrl(`data:image/png;base64,${json.qrcodeBase64}`);
-            } else {
-              throw new Error('Unsupported QR response');
-            }
-          }
+          const response = await productService.getQRCode(product.id);
+          const blob = response.data;
+          objectUrl = URL.createObjectURL(blob);
+          setQrUrl(objectUrl);
         } catch (err) {
+          console.error('QR code fetch error:', err);
           setMessage({ type: 'error', text: 'Unable to load QR code.' });
         } finally {
           setLoadingQr(false);
@@ -707,33 +746,21 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
       setAdjusting(true);
       setMessage(null);
       try {
-        const res = await fetch(`/api/products/${encodeURIComponent(product.id)}/adjust`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ delta }),
-        });
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(errText || 'Adjustment failed');
-        }
+        const response = await productService.adjustQuantity(product.id, delta);
 
-        // Optionally read returned new quantity
+        // Read the new quantity from response
         let newQty = productQty;
-        try {
-          const json = await res.json();
-          if (json && typeof json.newQuantity === 'number') {
-            newQty = json.newQuantity;
-          } else {
-            newQty = Math.max(0, productQty + delta);
-          }
-        } catch (e) {
+        if (response.data && typeof response.data.newQuantity === 'number') {
+          newQty = response.data.newQuantity;
+        } else {
           newQty = Math.max(0, productQty + delta);
         }
 
         setProductQty(newQty);
         setMessage({ type: 'success', text: `Quantity updated (${delta > 0 ? '+' : ''}${delta})` });
       } catch (err) {
-        setMessage({ type: 'error', text: err.message || 'Update failed' });
+        console.error('Quantity adjust error:', err);
+        setMessage({ type: 'error', text: err.response?.data?.message || 'Update failed' });
       } finally {
         setAdjusting(false);
       }
@@ -805,8 +832,89 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, onClose, onPr
     );
   };
 
+// Konva-based layout renderer for saved warehouse shapes
+const KonvaLayoutRenderer = ({ shapes = [], onRectClick }) => {
+  const containerRef = useRef(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const obs = new ResizeObserver(entries => {
+      const rect = entries[0].contentRect;
+      setSize({ width: rect.width, height: rect.height });
+    });
+    obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  if (!shapes || shapes.length === 0) {
+    return <Box ref={containerRef} sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' } }} />;
+  }
+
+  // compute bounding box of shapes
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  shapes.forEach(s => {
+    const x = Number(s.x || 0);
+    const y = Number(s.y || 0);
+    const w = Number(s.width || 100);
+    const h = Number(s.height || 40);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  });
+  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 100; maxY = 40; }
+
+  const contentW = Math.max(1, maxX - minX);
+  const contentH = Math.max(1, maxY - minY);
+  const padding = 20;
+  const scale = Math.min(
+    Math.max(0.1, (size.width - padding * 2) / contentW),
+    Math.max(0.1, (size.height - padding * 2) / contentH),
+  ) || 1;
+
+  const offsetX = (size.width - contentW * scale) / 2 - minX * scale;
+  const offsetY = (size.height - contentH * scale) / 2 - minY * scale;
+
+  return (
+    <Box ref={containerRef} sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' } }}>
+      {size.width > 0 && size.height > 0 && (
+        <Stage width={Math.max(100, size.width)} height={Math.max(100, size.height)}>
+          <Layer>
+            {shapes.map((s) => {
+              const x = offsetX + (Number(s.x || 0) * scale);
+              const y = offsetY + (Number(s.y || 0) * scale);
+              const w = Math.max(2, (Number(s.width || 100) * scale));
+              const h = Math.max(2, (Number(s.height || 40) * scale));
+              const rotation = Number(s.rotation || 0);
+              const isShelf = s.type === 'shelf';
+              return (
+                <Rect
+                  key={s.id}
+                  x={x}
+                  y={y}
+                  width={w}
+                  height={h}
+                  rotation={rotation}
+                  fill={isShelf ? green[200] : '#999'}
+                  stroke={isShelf ? green[800] : '#333'}
+                  strokeWidth={2}
+                  cornerRadius={isShelf ? 4 : 0}
+                  onClick={() => { if (isShelf && onRectClick) onRectClick(s); }}
+                  onTap={() => { if (isShelf && onRectClick) onRectClick(s); }}
+                  perfectDrawEnabled={false}
+                />
+              );
+            })}
+          </Layer>
+        </Stage>
+      )}
+    </Box>
+  );
+};
+
 // Warehouse Visual Modal Component
-const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
+const WarehouseVisualModal = ({ open, onClose, warehouse, onRefresh }) => {
   const [selectedShelfAnchor, setSelectedShelfAnchor] = useState(null);
   const [selectedShelf, setSelectedShelf] = useState(null);
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -827,15 +935,77 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
     setProductModalOpen(true);
   };
 
+  const handleShelfAddItem = async (warehouseId, shelfId, product) => {
+    try {
+      // Call backend API to add product to shelf
+      // CreateProductRequest requires: companyId (required), name (required)
+      // Note: shelfId from visual editor is a string (shape ID), not a DB Long ID
+      // We'll set shelfId to null for now, until shelves are created as entities
+      await productService.create({
+        companyId: 1, // TODO: Get from current user's company
+        shelfId: null, // Set to null since we don't have real shelf entities yet
+        name: product.name,
+        sku: product.sku,
+        unit: product.unit || 'pcs',
+        description: `Product added to visual shelf ${shelfId} in warehouse ${warehouseId}`,
+        minStockLevel: 0,
+        optimalStockLevel: Math.floor(product.quantity * 1.5),
+        maxStockLevel: Math.floor(product.quantity * 2)
+      });
+
+      // Refresh data
+      if (onRefresh) onRefresh();
+      alert('Product added successfully!');
+    } catch (error) {
+      console.error('Error adding product to shelf:', error);
+      alert('Failed to add product: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleShelfRemoveItem = async (warehouseId, shelfId, productIds) => {
+    try {
+      // Call backend API to remove products from shelf
+      await Promise.all(productIds.map(id => productService.delete(id)));
+
+      // Refresh data
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Error removing products from shelf:', error);
+      alert('Failed to remove products: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
   if (!warehouse) return null;
 
+  // Parse floorPlanData if shelves array is empty
+  let displayShelves = warehouse.shelves || [];
+  let shapes = [];
+
+  if (warehouse.floorPlanData) {
+    try {
+      shapes = JSON.parse(warehouse.floorPlanData);
+      if (displayShelves.length === 0) {
+        displayShelves = shapes
+          .filter(shape => shape.type === 'shelf')
+          .map((shape, index) => ({
+            id: shape.id || `Shelf ${index + 1}`,
+            occupied: false,
+            items: 0,
+            products: []
+          }));
+      }
+    } catch (error) {
+      console.error('Error parsing floorPlanData:', error);
+    }
+  }
+
   const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
-  const occupiedShelves = warehouse.shelves.filter(shelf => shelf.occupied).length;
+  const occupiedShelves = displayShelves.filter(shelf => shelf.occupied).length;
 
   return (
     <>
-      <Dialog 
-        open={open} 
+      <Dialog
+        open={open}
         onClose={onClose}
         maxWidth="md"
         fullWidth
@@ -846,9 +1016,9 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
           }
         }}
       >
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <DialogTitle sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           pb: 1
         }}>
@@ -864,14 +1034,14 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        
+
         <DialogContent>
           {/* Stats Summary */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={6} sm={3}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                  {warehouse.shelves.length}
+                  {displayShelves.length}
                 </Typography>
                 <Typography variant="caption">Total Shelves</Typography>
               </Paper>
@@ -887,7 +1057,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
             <Grid item xs={6} sm={3}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.400', color: 'white' }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                  {warehouse.shelves.length - occupiedShelves}
+                  {displayShelves.length - occupiedShelves}
                 </Typography>
                 <Typography variant="caption">Empty</Typography>
               </Paper>
@@ -903,10 +1073,10 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
           </Grid>
 
           {/* Warehouse Layout */}
-          <Paper 
-            elevation={0} 
-            sx={{ 
-              p: 3, 
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
               bgcolor: '#f5f5f5',
               border: '2px dashed #ccc',
               borderRadius: 2
@@ -915,218 +1085,49 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, textAlign: 'center' }}>
               Warehouse Floor Plan
             </Typography>
-            
+
             <Typography variant="caption" sx={{ display: 'block', mb: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
-              Click on any shelf to view its products
+              {shapes.length > 0 ? 'Click on any shelf to view its products' : 'No layout available'}
             </Typography>
-            
-            {/* Entrance */}
-            <Box sx={{ 
-              textAlign: 'center', 
-              mb: 2,
-              pb: 1,
-              borderBottom: '3px solid #666'
-            }}>
-              <Typography variant="caption" sx={{ 
-                bgcolor: 'warning.main', 
-                color: 'white',
-                px: 2,
-                py: 0.5,
-                borderRadius: 1,
-                fontWeight: 600
-              }}>
-                ENTRANCE
-              </Typography>
-            </Box>
 
-            {/* Shelves Grid */}
-            <Grid container spacing={2}>
-              {/* Left Aisle */}
-              <Grid item xs={5.5}>
-                <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
-                  Aisle A-B
-                </Typography>
-                <Grid container spacing={1}>
-                  {warehouse.shelves.slice(0, 6).map((shelf) => (
-                    <Grid item xs={4} key={shelf.id}>
-                      <Paper
-                        onClick={(e) => handleShelfClick(e, shelf)}
-                        elevation={shelf.occupied ? 3 : 0}
-                        sx={{
-                          p: 1.5,
-                          textAlign: 'center',
-                          bgcolor: shelf.occupied ? green[700] : 'grey.300',
-                          color: shelf.occupied ? 'white' : 'grey.600',
-                          borderRadius: 1,
-                          border: shelf.occupied ? 'none' : '2px dashed grey.400',
-                          minHeight: '80px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          transition: 'all 0.3s',
-                          cursor: shelf.occupied ? 'pointer' : 'default',
-                          '&:hover': shelf.occupied ? {
-                            transform: 'scale(1.08)',
-                            boxShadow: 4,
-                            bgcolor: green[600],
-                          } : {
-                            transform: 'scale(1.05)',
-                            boxShadow: 3
-                          }
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                          {shelf.id}
-                        </Typography>
-                        {shelf.occupied ? (
-                          <>
-                            <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                              {shelf.items} items
-                            </Typography>
-                          </>
-                        ) : (
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                            Empty
-                          </Typography>
-                        )}
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Grid>
-
-              {/* Center Aisle */}
-              <Grid item xs={1} sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                borderLeft: '2px dashed #999',
-                borderRight: '2px dashed #999'
-              }}>
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    writingMode: 'vertical-rl',
-                    transform: 'rotate(180deg)',
-                    fontWeight: 600,
-                    color: 'text.secondary'
+            {/* If warehouse has saved konva layout, render it; otherwise show message */}
+            {shapes.length > 0 ? (
+              <Box sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' }, position: 'relative' }}>
+                <KonvaLayoutRenderer
+                  shapes={shapes}
+                  onRectClick={(shape) => {
+                    if (!shape || shape.type !== 'shelf') return;
+                    const shelf = displayShelves.find(s => s.id === shape.id) || {
+                      id: shape.id,
+                      occupied: false,
+                      items: 0,
+                      products: []
+                    };
+                    handleShelfClick({ currentTarget: document.querySelector('[role="presentation"]') || document.body }, shelf);
                   }}
-                >
-                  MAIN CORRIDOR
-                </Typography>
-              </Grid>
-
-              {/* Right Aisle */}
-              <Grid item xs={5.5}>
-                <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
-                  Aisle C-D
-                </Typography>
-                <Grid container spacing={1}>
-                  {warehouse.shelves.slice(6, 12).map((shelf) => (
-                    <Grid item xs={4} key={shelf.id}>
-                      <Paper
-                        onClick={(e) => handleShelfClick(e, shelf)}
-                        elevation={shelf.occupied ? 3 : 0}
-                        sx={{
-                          p: 1.5,
-                          textAlign: 'center',
-                          bgcolor: shelf.occupied ? green[700] : 'grey.300',
-                          color: shelf.occupied ? 'white' : 'grey.600',
-                          borderRadius: 1,
-                          border: shelf.occupied ? 'none' : '2px dashed grey.400',
-                          minHeight: '80px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          transition: 'all 0.3s',
-                          cursor: shelf.occupied ? 'pointer' : 'default',
-                          '&:hover': shelf.occupied ? {
-                            transform: 'scale(1.08)',
-                            boxShadow: 4,
-                            bgcolor: green[600],
-                          } : {
-                            transform: 'scale(1.05)',
-                            boxShadow: 3
-                          }
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                          {shelf.id}
-                        </Typography>
-                        {shelf.occupied ? (
-                          <>
-                            <InventoryIcon sx={{ fontSize: 28, mb: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                              {shelf.items} items
-                            </Typography>
-                          </>
-                        ) : (
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-                            Empty
-                          </Typography>
-                        )}
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Grid>
-            </Grid>
-
-            {/* Exit */}
-            <Box sx={{ 
-              textAlign: 'center', 
-              mt: 2,
-              pt: 1,
-              borderTop: '3px solid #666'
-            }}>
-              <Typography variant="caption" sx={{ 
-                bgcolor: 'error.main', 
-                color: 'white',
-                px: 2,
-                py: 0.5,
-                borderRadius: 1,
-                fontWeight: 600
-              }}>
-                EXIT / LOADING DOCK
-              </Typography>
-            </Box>
-
-            {/* Legend */}
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center', gap: 3, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  bgcolor: green[700], 
-                  borderRadius: 0.5,
-                  mr: 1 
-                }} />
-                <Typography variant="caption">Occupied Shelf (Clickable)</Typography>
+                />
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ 
-                  width: 20, 
-                  height: 20, 
-                  bgcolor: 'grey.300',
-                  border: '2px dashed',
-                  borderColor: 'grey.400',
-                  borderRadius: 0.5,
-                  mr: 1 
-                }} />
-                <Typography variant="caption">Empty Shelf</Typography>
+            ) : (
+              <Box sx={{ textAlign: 'center', py: 8 }}>
+                <WarehouseIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  No visual layout available
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Create a warehouse with the visual editor to see it here
+                </Typography>
               </Box>
-            </Box>
+            )}
           </Paper>
 
           {/* Additional Info */}
           <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 2 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Last Updated: {warehouse.lastUpdate}
+              Last Updated: {warehouse.lastUpdate || warehouse.updatedAt || 'N/A'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Total Capacity: {warehouse.capacity.toLocaleString()} units | 
-              Current Stock: {warehouse.currentStock.toLocaleString()} units
+              Total Capacity: {(warehouse.capacity || 0).toLocaleString()} units |
+              Current Stock: {(warehouse.currentStock || 0).toLocaleString()} units
             </Typography>
           </Box>
         </DialogContent>
@@ -1144,8 +1145,11 @@ const WarehouseVisualModal = ({ open, onClose, warehouse }) => {
         anchorEl={selectedShelfAnchor}
         shelf={selectedShelf}
         warehouseName={warehouse?.name}
+        warehouseId={warehouse?.id}
         onClose={handleCloseShelfPopover}
         onProductSelect={handleProductSelect}
+        onShelfAddItem={handleShelfAddItem}
+        onShelfRemoveItem={handleShelfRemoveItem}
       />
 
       {/* Product Detail Dialog */}
@@ -1163,13 +1167,52 @@ const WarehousesPage = () => {
   const navigate = useNavigate();
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
-  
+
   const [selectedPage, setSelectedPage] = useState('Warehouses');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [warehouseToDelete, setWarehouseToDelete] = useState(null);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [notifications] = useState(sampleNotifications);
+
+  // API state management
+  const [warehousesData, setWarehousesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load warehouses from API
+  useEffect(() => {
+    loadWarehouses();
+  }, []);
+
+  const loadWarehouses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await warehouseService.getAll();
+
+      // Transform API data to match the expected format
+      const transformedData = response.data.map(warehouse => ({
+        id: warehouse.id,
+        name: warehouse.name,
+        capacity: warehouse.capacity || 10000,
+        currentStock: warehouse.currentStock || 0,
+        lastUpdate: warehouse.updatedAt || new Date().toISOString(),
+        shelves: warehouse.shelves || [],
+        floorPlanData: warehouse.floorPlanData || null
+      }));
+
+      setWarehousesData(transformedData);
+    } catch (err) {
+      console.error('Error loading warehouses:', err);
+      setError('Failed to load warehouses. Please try again later.');
+      setWarehousesData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -1195,14 +1238,48 @@ const WarehousesPage = () => {
     }
   };
 
-  const handleWarehouseClick = (warehouse) => {
-    setSelectedWarehouse(warehouse);
-    setModalOpen(true);
+  const handleWarehouseClick = async (warehouse) => {
+    try {
+      // Fetch detailed warehouse data with shelves
+      const response = await warehouseService.getById(warehouse.id);
+      const detailedWarehouse = {
+        ...response.data,
+        shelves: response.data.shelves || [],
+        floorPlanData: response.data.floorPlanData || null
+      };
+      setSelectedWarehouse(detailedWarehouse);
+      setModalOpen(true);
+    } catch (err) {
+      console.error('Error loading warehouse details:', err);
+      // Fallback to basic warehouse data if detailed fetch fails
+      setSelectedWarehouse(warehouse);
+      setModalOpen(true);
+    }
   };
 
   const handleCloseModal = () => {
     setModalOpen(false);
     setSelectedWarehouse(null);
+  };
+
+  const handleCreateWarehouse = () => {
+    navigate('/warehouses/new');
+  };
+
+  const handleDeleteWarehouse = async (warehouse) => {
+    if (!warehouse) return;
+    try {
+      await warehouseService.delete(warehouse.id);
+      // Reload warehouses after deletion
+      await loadWarehouses();
+      // Close modal if the deleted warehouse was open
+      if (selectedWarehouse && selectedWarehouse.id === warehouse.id) {
+        handleCloseModal();
+      }
+    } catch (err) {
+      console.error('Error deleting warehouse:', err);
+      setError('Failed to delete warehouse. Please try again.');
+    }
   };
 
   const menuItems = [
@@ -1217,7 +1294,7 @@ const WarehousesPage = () => {
   const totalWarehouses = warehousesData.length;
   const totalCapacity = warehousesData.reduce((sum, wh) => sum + wh.capacity, 0);
   const totalStock = warehousesData.reduce((sum, wh) => sum + wh.currentStock, 0);
-  const averageUtilization = ((totalStock / totalCapacity) * 100).toFixed(1);
+  const averageUtilization = totalCapacity > 0 ? ((totalStock / totalCapacity) * 100).toFixed(1) : '0.0';
 
   const getUtilizationColor = (utilization) => {
     if (utilization >= 80) return 'error';
@@ -1308,7 +1385,7 @@ const WarehousesPage = () => {
     <ThemeProvider theme={theme}>
       <Box sx={{ display: 'flex' }}>
         <CssBaseline />
-        
+
         <AppBar
           position="fixed"
           sx={{
@@ -1331,21 +1408,21 @@ const WarehousesPage = () => {
                 <MenuIcon />
               </IconButton>
             )}
-            
-            <Typography 
-              variant="h6" 
-              noWrap 
+
+            <Typography
+              variant="h6"
+              noWrap
               component="div"
-              sx={{ 
+              sx={{
                 display: { xs: 'block', md: 'none' },
                 fontWeight: 600
               }}
             >
               Warehouses
             </Typography>
-            
+
             <Box sx={{ flexGrow: 1 }} />
-            
+
             <IconButton
               size="large"
               aria-label="show new notifications"
@@ -1417,26 +1494,33 @@ const WarehousesPage = () => {
             width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
           }}
         >
-          <Toolbar /> 
-          
-          <Typography 
-            variant="h4" 
-            gutterBottom 
-            sx={{ 
-              fontWeight: 700,
-              fontSize: { xs: '1.75rem', sm: '2.125rem' },
-              mb: 3
-            }}
-          >
-            Warehouses
-          </Typography>
+          <Toolbar />
+
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Typography
+              variant="h4"
+              gutterBottom
+              sx={{
+                fontWeight: 700,
+                fontSize: { xs: '1.75rem', sm: '2.125rem' }
+              }}
+            >
+              Warehouses
+            </Typography>
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={handleCreateWarehouse}>
+                Create Warehouse
+              </Button>
+            </Box>
+          </Box>
 
           {/* Summary Statistics */}
           <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ 
-                p: 2.5, 
-                borderRadius: 3, 
+              <Paper sx={{
+                p: 2.5,
+                borderRadius: 3,
                 boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                 height: '100%'
               }}>
@@ -1453,9 +1537,9 @@ const WarehousesPage = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ 
-                p: 2.5, 
-                borderRadius: 3, 
+              <Paper sx={{
+                p: 2.5,
+                borderRadius: 3,
                 boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                 height: '100%'
               }}>
@@ -1472,9 +1556,9 @@ const WarehousesPage = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ 
-                p: 2.5, 
-                borderRadius: 3, 
+              <Paper sx={{
+                p: 2.5,
+                borderRadius: 3,
                 boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                 height: '100%'
               }}>
@@ -1491,9 +1575,9 @@ const WarehousesPage = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ 
-                p: 2.5, 
-                borderRadius: 3, 
+              <Paper sx={{
+                p: 2.5,
+                borderRadius: 3,
                 boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                 height: '100%'
               }}>
@@ -1510,17 +1594,43 @@ const WarehousesPage = () => {
             </Grid>
           </Grid>
 
+          {/* Error Message */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Loading Indicator */}
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px', width: '100%' }}>
+              <CircularProgress />
+            </Box>
+          )}
+
           {/* Warehouses List */}
-          <Grid container spacing={{ xs: 2, sm: 3 }}>
-            {warehousesData.map((warehouse) => {
+          {!loading && !error && (
+            <Grid container spacing={{ xs: 2, sm: 3 }}>
+              {warehousesData.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 8, width: '100%' }}>
+                  <WarehouseIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary">
+                    No warehouses found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Create your first warehouse to get started
+                  </Typography>
+                </Box>
+              ) : (
+                warehousesData.map((warehouse) => {
               const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
-              
+
               return (
                 <Grid item xs={12} sm={6} lg={4} key={warehouse.id}>
-                  <Card 
+                  <Card
                     onClick={() => handleWarehouseClick(warehouse)}
-                    sx={{ 
-                      borderRadius: 3, 
+                    sx={{
+                      borderRadius: 3,
                       boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                       height: '100%',
                       transition: 'transform 0.2s, box-shadow 0.2s',
@@ -1536,7 +1646,7 @@ const WarehousesPage = () => {
                         <Typography variant="h6" sx={{ fontWeight: 600, mb: 0 }}>
                           {warehouse.name}
                         </Typography>
-                        <Chip 
+                        <Chip
                           label={`${utilization}%`}
                           color={getUtilizationColor(parseFloat(utilization))}
                           size="small"
@@ -1550,7 +1660,7 @@ const WarehousesPage = () => {
                             Capacity
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {warehouse.capacity.toLocaleString()}
+                            {(warehouse.capacity || 0).toLocaleString()}
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -1558,15 +1668,15 @@ const WarehousesPage = () => {
                             Current Stock
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {warehouse.currentStock.toLocaleString()}
+                            {(warehouse.currentStock || 0).toLocaleString()}
                           </Typography>
                         </Box>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={parseFloat(utilization)} 
+                        <LinearProgress
+                          variant="determinate"
+                          value={parseFloat(utilization)}
                           color={getUtilizationColor(parseFloat(utilization))}
-                          sx={{ 
-                            height: 8, 
+                          sx={{
+                            height: 8,
                             borderRadius: 1,
                             backgroundColor: 'rgba(0,0,0,0.08)'
                           }}
@@ -1576,12 +1686,12 @@ const WarehousesPage = () => {
                       <Divider sx={{ my: 2 }} />
 
                       <Typography variant="caption" color="text.secondary">
-                        Last Update: {warehouse.lastUpdate}
+                        Last Update: {warehouse.lastUpdate || warehouse.updatedAt || 'N/A'}
                       </Typography>
-                      
-                      <Box sx={{ mt: 1 }}>
-                        <Typography variant="caption" sx={{ 
-                          color: 'primary.main', 
+
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="caption" sx={{
+                          color: 'primary.main',
                           fontWeight: 600,
                           display: 'flex',
                           alignItems: 'center',
@@ -1589,26 +1699,69 @@ const WarehousesPage = () => {
                         }}>
                           Click to view layout →
                         </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setWarehouseToDelete(warehouse);
+                            setDeleteConfirmOpen(true);
+                          }}
+                          sx={{ ml: 1 }}
+                          title="Delete warehouse"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
                       </Box>
                     </CardContent>
                   </Card>
                 </Grid>
               );
-            })}
-          </Grid>
-          
+            })
+              )}
+            </Grid>
+          )}
+
         </Box>
       </Box>
 
       {/* Warehouse Visual Modal */}
-      <WarehouseVisualModal 
+      <WarehouseVisualModal
         open={modalOpen}
         onClose={handleCloseModal}
         warehouse={selectedWarehouse}
+        onRefresh={loadWarehouses}
       />
 
+      {/* Delete confirmation dialog */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => { setDeleteConfirmOpen(false); setWarehouseToDelete(null); }}
+        maxWidth="xs"
+      >
+        <DialogTitle>Delete Warehouse</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete "{warehouseToDelete?.name}"? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setDeleteConfirmOpen(false); setWarehouseToDelete(null); }}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              if (warehouseToDelete) handleDeleteWarehouse(warehouseToDelete);
+              setDeleteConfirmOpen(false);
+              setWarehouseToDelete(null);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Notification Menu */}
-      <NotificationMenu 
+      <NotificationMenu
         notifications={notifications}
         open={Boolean(notificationAnchorEl)}
         anchorEl={notificationAnchorEl}
