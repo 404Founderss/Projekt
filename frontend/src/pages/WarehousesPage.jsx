@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { warehouseService } from '../services/warehouseService';
+import { shelfService } from '../services/shelfService';
+import { productService } from '../services/productService';
 import {
   Box,
   Drawer,
@@ -108,22 +111,6 @@ const sampleNotifications = [
     timestamp: '2 hours ago',
     read: true
   },
-  {
-    id: 4,
-    type: 'warning',
-    title: 'Inventory Discrepancy',
-    message: 'Count mismatch detected in warehouse D - aisle B',
-    timestamp: '1 day ago',
-    read: true
-  },
-  {
-    id: 5,
-    type: 'success',
-    title: 'System Update Complete',
-    message: 'Warehouse management system updated to version 2.5.1',
-    timestamp: '3 days ago',
-    read: true
-  }
 ];
 
 // Notification Menu Component
@@ -184,9 +171,9 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             Notifications
           </Typography>
-          <Chip 
-            label={unreadCount} 
-            size="small" 
+          <Chip
+            label={unreadCount}
+            size="small"
             color="error"
             sx={{ fontWeight: 700 }}
           />
@@ -449,24 +436,54 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [products, setProducts] = useState([]);
+
+  // Load products when shelf changes or popover opens
+  useEffect(() => {
+    if (open && shelf && shelf.id) {
+      // If products are already loaded in shelf object, use them
+      if (shelf.products && shelf.products.length > 0) {
+        setProducts(shelf.products);
+      } else {
+        // Otherwise, fetch products from API
+        loadShelfProducts();
+      }
+    }
+  }, [open, shelf]);
+
+  const loadShelfProducts = async () => {
+    if (!shelf || !shelf.id) return;
+
+    try {
+      setLoadingProducts(true);
+      const response = await shelfService.getProducts(shelf.id);
+      setProducts(response.data || []);
+    } catch (err) {
+      console.error('Error loading shelf products:', err);
+      setProducts([]);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
 
   const filteredProducts = useMemo(() => {
-    if (!shelf) return [];
-    return shelf.products.filter((product) => {
-      const matchesSearch = 
+    if (!products || products.length === 0) return [];
+    return products.filter((product) => {
+      const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.sku.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
       const matchesStatus = filterStatus === 'all' || product.status === filterStatus;
       return matchesSearch && matchesCategory && matchesStatus;
     });
-  }, [shelf, searchTerm, filterCategory, filterStatus]);
+  }, [products, searchTerm, filterCategory, filterStatus]);
 
   const categories = useMemo(() => {
-    if (!shelf) return [];
-    const uniqueCategories = new Set(shelf.products.map(p => p.category));
+    if (!products || products.length === 0) return [];
+    const uniqueCategories = new Set(products.map(p => p.category));
     return Array.from(uniqueCategories);
-  }, [shelf]);
+  }, [products]);
 
   const handleResetFilters = () => {
     setSearchTerm('');
@@ -576,8 +593,8 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
             </Box>
           </Box>
         </Box>
-        <Chip 
-          label={`${shelf.products.length} Products`}
+        <Chip
+          label={loadingProducts ? 'Loading...' : `${products.length} Products`}
           size="small"
           sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 600 }}
         />
@@ -668,12 +685,19 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
 
           {/* Results Summary */}
           <Typography variant="caption" color="text.secondary">
-            Showing {filteredProducts.length} of {shelf.products.length} products
+            Showing {filteredProducts.length} of {products.length} products
           </Typography>
         </Stack>
 
         {/* Products List */}
-        {filteredProducts.length > 0 ? (
+        {loadingProducts ? (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <CircularProgress size={32} />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              Loading products...
+            </Typography>
+          </Box>
+        ) : filteredProducts.length > 0 ? (
           <Stack spacing={1}>
             {filteredProducts.map((product) => (
               <Paper
@@ -738,7 +762,7 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
           <Box sx={{ textAlign: 'center', py: 3 }}>
             <InventoryIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
             <Typography color="text.secondary">
-              {shelf.products.length === 0 ? 'No products on this shelf' : 'No matching products found'}
+              {products.length === 0 ? 'No products on this shelf' : 'No matching products found'}
             </Typography>
           </Box>
         )}
@@ -837,30 +861,18 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
       setQrUrl(null);
       if (!open) return;
 
-      // Fetch QR code when dialog opens. Use a local objectUrl variable
-      // so cleanup doesn't depend on component state (avoids eslint missing-deps).
+      // Fetch QR code when dialog opens
       let objectUrl = null;
       const fetchQr = async () => {
         if (!product) return;
         setLoadingQr(true);
         try {
-          const res = await fetch(`/api/products/${encodeURIComponent(product.id)}/qrcode`);
-          if (!res.ok) throw new Error('Failed to fetch QR');
-
-          const contentType = res.headers.get('content-type') || '';
-          if (contentType.startsWith('image/')) {
-            const blob = await res.blob();
-            objectUrl = URL.createObjectURL(blob);
-            setQrUrl(objectUrl);
-          } else {
-            const json = await res.json();
-            if (json && json.qrcodeBase64) {
-              setQrUrl(`data:image/png;base64,${json.qrcodeBase64}`);
-            } else {
-              throw new Error('Unsupported QR response');
-            }
-          }
+          const response = await productService.getQRCode(product.id);
+          const blob = response.data;
+          objectUrl = URL.createObjectURL(blob);
+          setQrUrl(objectUrl);
         } catch (err) {
+          console.error('QR code fetch error:', err);
           setMessage({ type: 'error', text: 'Unable to load QR code.' });
         } finally {
           setLoadingQr(false);
@@ -888,33 +900,21 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
       setAdjusting(true);
       setMessage(null);
       try {
-        const res = await fetch(`/api/products/${encodeURIComponent(product.id)}/adjust`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ delta }),
-        });
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(errText || 'Adjustment failed');
-        }
+        const response = await productService.adjustQuantity(product.id, delta);
 
-        // Optionally read returned new quantity
+        // Read the new quantity from response
         let newQty = productQty;
-        try {
-          const json = await res.json();
-          if (json && typeof json.newQuantity === 'number') {
-            newQty = json.newQuantity;
-          } else {
-            newQty = Math.max(0, productQty + delta);
-          }
-        } catch (e) {
+        if (response.data && typeof response.data.newQuantity === 'number') {
+          newQty = response.data.newQuantity;
+        } else {
           newQty = Math.max(0, productQty + delta);
         }
 
         setProductQty(newQty);
         setMessage({ type: 'success', text: `Quantity updated (${delta > 0 ? '+' : ''}${delta})` });
       } catch (err) {
-        setMessage({ type: 'error', text: err.message || 'Update failed' });
+        console.error('Quantity adjust error:', err);
+        setMessage({ type: 'error', text: err.response?.data?.message || 'Update failed' });
       } finally {
         setAdjusting(false);
       }
@@ -1089,15 +1089,77 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
     setProductModalOpen(true);
   };
 
+  const handleShelfAddItem = async (warehouseId, shelfId, product) => {
+    try {
+      // Call backend API to add product to shelf
+      // CreateProductRequest requires: companyId (required), name (required)
+      // Note: shelfId from visual editor is a string (shape ID), not a DB Long ID
+      // We'll set shelfId to null for now, until shelves are created as entities
+      await productService.create({
+        companyId: 1, // TODO: Get from current user's company
+        shelfId: null, // Set to null since we don't have real shelf entities yet
+        name: product.name,
+        sku: product.sku,
+        unit: product.unit || 'pcs',
+        description: `Product added to visual shelf ${shelfId} in warehouse ${warehouseId}`,
+        minStockLevel: 0,
+        optimalStockLevel: Math.floor(product.quantity * 1.5),
+        maxStockLevel: Math.floor(product.quantity * 2)
+      });
+
+      // Refresh data
+      if (onRefresh) onRefresh();
+      alert('Product added successfully!');
+    } catch (error) {
+      console.error('Error adding product to shelf:', error);
+      alert('Failed to add product: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleShelfRemoveItem = async (warehouseId, shelfId, productIds) => {
+    try {
+      // Call backend API to remove products from shelf
+      await Promise.all(productIds.map(id => productService.delete(id)));
+
+      // Refresh data
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Error removing products from shelf:', error);
+      alert('Failed to remove products: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
   if (!warehouse) return null;
 
+  // Parse floorPlanData if shelves array is empty
+  let displayShelves = warehouse.shelves || [];
+  let shapes = [];
+
+  if (warehouse.floorPlanData) {
+    try {
+      shapes = JSON.parse(warehouse.floorPlanData);
+      if (displayShelves.length === 0) {
+        displayShelves = shapes
+          .filter(shape => shape.type === 'shelf')
+          .map((shape, index) => ({
+            id: shape.id || `Shelf ${index + 1}`,
+            occupied: false,
+            items: 0,
+            products: []
+          }));
+      }
+    } catch (error) {
+      console.error('Error parsing floorPlanData:', error);
+    }
+  }
+
   const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
-  const occupiedShelves = warehouse.shelves.filter(shelf => shelf.occupied).length;
+  const occupiedShelves = displayShelves.filter(shelf => shelf.occupied).length;
 
   return (
     <>
-      <Dialog 
-        open={open} 
+      <Dialog
+        open={open}
         onClose={onClose}
         maxWidth="md"
         fullWidth
@@ -1108,9 +1170,9 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
           }
         }}
       >
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <DialogTitle sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           pb: 1
         }}>
@@ -1126,14 +1188,14 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        
+
         <DialogContent>
           {/* Stats Summary */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={6} sm={3}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                  {warehouse.shelves.length}
+                  {displayShelves.length}
                 </Typography>
                 <Typography variant="caption">Total Shelves</Typography>
               </Paper>
@@ -1149,7 +1211,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
             <Grid item xs={6} sm={3}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.400', color: 'white' }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                  {warehouse.shelves.length - occupiedShelves}
+                  {displayShelves.length - occupiedShelves}
                 </Typography>
                 <Typography variant="caption">Empty</Typography>
               </Paper>
@@ -1179,7 +1241,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
             </Typography>
 
             <Typography variant="caption" sx={{ display: 'block', mb: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
-              Click on any shelf to view its products
+              {shapes.length > 0 ? 'Click on any shelf to view its products' : 'No layout available'}
             </Typography>
 
             {/* If warehouse has a saved konva layout, render it exactly; otherwise fall back to the grid */}
@@ -1419,11 +1481,11 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
           {/* Additional Info */}
           <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 2 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Last Updated: {warehouse.lastUpdate}
+              Last Updated: {warehouse.lastUpdate || warehouse.updatedAt || 'N/A'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Total Capacity: {warehouse.capacity.toLocaleString()} units | 
-              Current Stock: {warehouse.currentStock.toLocaleString()} units
+              Total Capacity: {(warehouse.capacity || 0).toLocaleString()} units |
+              Current Stock: {(warehouse.currentStock || 0).toLocaleString()} units
             </Typography>
           </Box>
         </DialogContent>
@@ -1494,6 +1556,43 @@ const WarehousesPage = () => {
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
   const [notifications] = useState(sampleNotifications);
 
+  // API state management
+  const [warehousesData, setWarehousesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load warehouses from API
+  useEffect(() => {
+    loadWarehouses();
+  }, []);
+
+  const loadWarehouses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await warehouseService.getAll();
+
+      // Transform API data to match the expected format
+      const transformedData = response.data.map(warehouse => ({
+        id: warehouse.id,
+        name: warehouse.name,
+        capacity: warehouse.capacity || 10000,
+        currentStock: warehouse.currentStock || 0,
+        lastUpdate: warehouse.updatedAt || new Date().toISOString(),
+        shelves: warehouse.shelves || [],
+        floorPlanData: warehouse.floorPlanData || null
+      }));
+
+      setWarehousesData(transformedData);
+    } catch (err) {
+      console.error('Error loading warehouses:', err);
+      setError('Failed to load warehouses. Please try again later.');
+      setWarehousesData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
@@ -1518,9 +1617,23 @@ const WarehousesPage = () => {
     }
   };
 
-  const handleWarehouseClick = (warehouse) => {
-    setSelectedWarehouse(warehouse);
-    setModalOpen(true);
+  const handleWarehouseClick = async (warehouse) => {
+    try {
+      // Fetch detailed warehouse data with shelves
+      const response = await warehouseService.getById(warehouse.id);
+      const detailedWarehouse = {
+        ...response.data,
+        shelves: response.data.shelves || [],
+        floorPlanData: response.data.floorPlanData || null
+      };
+      setSelectedWarehouse(detailedWarehouse);
+      setModalOpen(true);
+    } catch (err) {
+      console.error('Error loading warehouse details:', err);
+      // Fallback to basic warehouse data if detailed fetch fails
+      setSelectedWarehouse(warehouse);
+      setModalOpen(true);
+    }
   };
 
   const handleCloseModal = () => {
@@ -1757,7 +1870,7 @@ const WarehousesPage = () => {
     <ThemeProvider theme={theme}>
       <Box sx={{ display: 'flex' }}>
         <CssBaseline />
-        
+
         <AppBar
           position="fixed"
           sx={{
@@ -1780,21 +1893,21 @@ const WarehousesPage = () => {
                 <MenuIcon />
               </IconButton>
             )}
-            
-            <Typography 
-              variant="h6" 
-              noWrap 
+
+            <Typography
+              variant="h6"
+              noWrap
               component="div"
-              sx={{ 
+              sx={{
                 display: { xs: 'block', md: 'none' },
                 fontWeight: 600
               }}
             >
               Warehouses
             </Typography>
-            
+
             <Box sx={{ flexGrow: 1 }} />
-            
+
             <IconButton
               size="large"
               aria-label="show new notifications"
@@ -1890,9 +2003,9 @@ const WarehousesPage = () => {
           {/* Summary Statistics */}
           <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ 
-                p: 2.5, 
-                borderRadius: 3, 
+              <Paper sx={{
+                p: 2.5,
+                borderRadius: 3,
                 boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                 height: '100%'
               }}>
@@ -1909,9 +2022,9 @@ const WarehousesPage = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ 
-                p: 2.5, 
-                borderRadius: 3, 
+              <Paper sx={{
+                p: 2.5,
+                borderRadius: 3,
                 boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                 height: '100%'
               }}>
@@ -1928,9 +2041,9 @@ const WarehousesPage = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ 
-                p: 2.5, 
-                borderRadius: 3, 
+              <Paper sx={{
+                p: 2.5,
+                borderRadius: 3,
                 boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                 height: '100%'
               }}>
@@ -1947,9 +2060,9 @@ const WarehousesPage = () => {
             </Grid>
 
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ 
-                p: 2.5, 
-                borderRadius: 3, 
+              <Paper sx={{
+                p: 2.5,
+                borderRadius: 3,
                 boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                 height: '100%'
               }}>
@@ -1966,17 +2079,31 @@ const WarehousesPage = () => {
             </Grid>
           </Grid>
 
+          {/* Error Message */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
+              {error}
+            </Alert>
+          )}
+
+          {/* Loading Indicator */}
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px', width: '100%' }}>
+              <CircularProgress />
+            </Box>
+          )}
+
           {/* Warehouses List */}
           <Grid container spacing={{ xs: 2, sm: 3 }}>
             {allWarehousesData.map((warehouse) => {
               const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
-              
+
               return (
                 <Grid item xs={12} sm={6} lg={4} key={warehouse.id}>
-                  <Card 
+                  <Card
                     onClick={() => handleWarehouseClick(warehouse)}
-                    sx={{ 
-                      borderRadius: 3, 
+                    sx={{
+                      borderRadius: 3,
                       boxShadow: '0 4px 12px 0 rgba(0,0,0,0.07)',
                       height: '100%',
                       transition: 'transform 0.2s, box-shadow 0.2s',
@@ -1992,7 +2119,7 @@ const WarehousesPage = () => {
                         <Typography variant="h6" sx={{ fontWeight: 600, mb: 0 }}>
                           {warehouse.name}
                         </Typography>
-                        <Chip 
+                        <Chip
                           label={`${utilization}%`}
                           color={getUtilizationColor(parseFloat(utilization))}
                           size="small"
@@ -2006,7 +2133,7 @@ const WarehousesPage = () => {
                             Capacity
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {warehouse.capacity.toLocaleString()}
+                            {(warehouse.capacity || 0).toLocaleString()}
                           </Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -2014,15 +2141,15 @@ const WarehousesPage = () => {
                             Current Stock
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {warehouse.currentStock.toLocaleString()}
+                            {(warehouse.currentStock || 0).toLocaleString()}
                           </Typography>
                         </Box>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={parseFloat(utilization)} 
+                        <LinearProgress
+                          variant="determinate"
+                          value={parseFloat(utilization)}
                           color={getUtilizationColor(parseFloat(utilization))}
-                          sx={{ 
-                            height: 8, 
+                          sx={{
+                            height: 8,
                             borderRadius: 1,
                             backgroundColor: 'rgba(0,0,0,0.08)'
                           }}
@@ -2032,7 +2159,7 @@ const WarehousesPage = () => {
                       <Divider sx={{ my: 2 }} />
 
                       <Typography variant="caption" color="text.secondary">
-                        Last Update: {warehouse.lastUpdate}
+                        Last Update: {warehouse.lastUpdate || warehouse.updatedAt || 'N/A'}
                       </Typography>
                       
                               <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2058,14 +2185,16 @@ const WarehousesPage = () => {
                   </Card>
                 </Grid>
               );
-            })}
-          </Grid>
-          
+            })
+              )}
+            </Grid>
+          )}
+
         </Box>
       </Box>
 
       {/* Warehouse Visual Modal */}
-      <WarehouseVisualModal 
+      <WarehouseVisualModal
         open={modalOpen}
         onClose={handleCloseModal}
         warehouse={selectedWarehouse}
@@ -2103,7 +2232,7 @@ const WarehousesPage = () => {
       </Dialog>
 
       {/* Notification Menu */}
-      <NotificationMenu 
+      <NotificationMenu
         notifications={notifications}
         open={Boolean(notificationAnchorEl)}
         anchorEl={notificationAnchorEl}

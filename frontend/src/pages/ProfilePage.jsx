@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { userService } from '../services/userService';
 import {
   Box,
   Drawer,
@@ -295,10 +296,32 @@ const ProfilePage = () => {
     username: user?.username || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    currentPassword: '',
+    oldPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState('');
+
+  // Load profile data on mount
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const response = await userService.getProfile();
+      const profile = response.data;
+      setFormData(prev => ({
+        ...prev,
+        username: profile.username || '',
+        email: profile.email || '',
+      }));
+      setProfilePictureUrl(profile.profilePicture || '');
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -332,35 +355,82 @@ const ProfilePage = () => {
     }));
   };
 
-  const handleProfileUpdate = (e) => {
+  const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setSuccessMessage('');
     setErrorMessage('');
+    setLoading(true);
 
-    // Validate password match if changing password
-    if (formData.newPassword && formData.newPassword !== formData.confirmPassword) {
-      setErrorMessage('New passwords do not match!');
-      return;
-    }
+    try {
+      // Update email if changed
+      if (formData.email) {
+        await userService.updateProfile(formData.email);
+      }
 
-    // Simulate API call
-    setTimeout(() => {
+      // Change password if provided
+      if (formData.newPassword) {
+        if (formData.newPassword !== formData.confirmPassword) {
+          setErrorMessage('New passwords do not match!');
+          setLoading(false);
+          return;
+        }
+
+        if (!formData.oldPassword) {
+          setErrorMessage('Please enter your current password');
+          setLoading(false);
+          return;
+        }
+
+        await userService.changePassword(formData.oldPassword, formData.newPassword);
+
+        // Clear password fields after successful change
+        setFormData(prev => ({
+          ...prev,
+          oldPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        }));
+      }
+
       setSuccessMessage('Profile updated successfully!');
-      setFormData(prev => ({
-        ...prev,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      }));
-    }, 500);
+    } catch (error) {
+      console.error('Profile update error:', error);
+      setErrorMessage(error.response?.data?.error || 'Failed to update profile');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleProfilePictureChange = (e) => {
+  const handleProfilePictureChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Simulate profile picture upload
-      setSuccessMessage('Profile picture uploaded successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMessage('File size must be less than 5MB');
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrorMessage('Please select an image file');
+        return;
+      }
+
+      setLoading(true);
+      setSuccessMessage('');
+      setErrorMessage('');
+
+      try {
+        const response = await userService.uploadProfilePicture(file);
+        setProfilePictureUrl(response.data.profilePictureUrl);
+        setSuccessMessage('Profile picture uploaded successfully!');
+        await loadProfile(); // Reload profile to get updated picture
+      } catch (error) {
+        console.error('Profile picture upload error:', error);
+        setErrorMessage(error.response?.data?.error || 'Failed to upload profile picture');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -699,9 +769,9 @@ const ProfilePage = () => {
                   <TextField
                     fullWidth
                     label="Current Password"
-                    name="currentPassword"
+                    name="oldPassword"
                     type="password"
-                    value={formData.currentPassword}
+                    value={formData.oldPassword}
                     onChange={handleInputChange}
                     variant="outlined"
                   />

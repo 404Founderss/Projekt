@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -80,29 +79,6 @@ public class CompanyService {
      */
     public List<Company> searchActiveByName(String name) {
         return companyRepository.findByIsActiveTrueAndNameContainingIgnoreCase(name);
-    }
-
-    /**
-     * Cégek előfizetési csomag szerint.
-     */
-    public List<Company> findBySubscriptionPlan(Company.SubscriptionPlan subscriptionPlan) {
-        return companyRepository.findBySubscriptionPlan(subscriptionPlan);
-    }
-
-    /**
-     * Lejárt előfizetésű cégek.
-     */
-    public List<Company> findExpiredSubscriptions() {
-        return companyRepository.findBySubscriptionExpiresAtBefore(LocalDate.now());
-    }
-
-    /**
-     * Hamarosan lejáró előfizetések (következő N napon belül).
-     */
-    public List<Company> findExpiringSubscriptions(int daysAhead) {
-        LocalDate today = LocalDate.now();
-        LocalDate futureDate = today.plusDays(daysAhead);
-        return companyRepository.findBySubscriptionExpiresAtBetween(today, futureDate);
     }
 
     /**
@@ -192,12 +168,6 @@ public class CompanyService {
         if (companyDetails.getIsActive() != null) {
             company.setIsActive(companyDetails.getIsActive());
         }
-        if (companyDetails.getSubscriptionPlan() != null) {
-            company.setSubscriptionPlan(companyDetails.getSubscriptionPlan());
-        }
-        if (companyDetails.getSubscriptionExpiresAt() != null) {
-            company.setSubscriptionExpiresAt(companyDetails.getSubscriptionExpiresAt());
-        }
 
         return companyRepository.save(company);
     }
@@ -219,34 +189,5 @@ public class CompanyService {
     public void delete(Long id) {
         Company company = findById(id);
         companyRepository.delete(company);
-    }
-
-    /**
-     * Előfizetés meghosszabbítása.
-     */
-    @Transactional
-    public Company extendSubscription(Long id, int daysToAdd) {
-        Company company = findById(id);
-        LocalDate currentExpiration = company.getSubscriptionExpiresAt();
-
-        if (currentExpiration == null || currentExpiration.isBefore(LocalDate.now())) {
-            // Ha lejárt vagy nincs beállítva, a mai naptól számítunk
-            company.setSubscriptionExpiresAt(LocalDate.now().plusDays(daysToAdd));
-        } else {
-            // Ha még aktív, a jelenlegi lejárati dátumhoz adunk hozzá
-            company.setSubscriptionExpiresAt(currentExpiration.plusDays(daysToAdd));
-        }
-
-        return companyRepository.save(company);
-    }
-
-    /**
-     * Előfizetési csomag váltása.
-     */
-    @Transactional
-    public Company changeSubscriptionPlan(Long id, Company.SubscriptionPlan newPlan) {
-        Company company = findById(id);
-        company.setSubscriptionPlan(newPlan);
-        return companyRepository.save(company);
     }
 }
