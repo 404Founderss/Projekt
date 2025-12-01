@@ -1,12 +1,9 @@
 package com.founders404.backend.dto;
 
-import com.founders404.backend.model.Company;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -40,9 +37,4 @@ public class CreateCompanyRequest {
 
     @Size(max = 20, message = "Phone must not exceed 20 characters")
     private String phone;
-
-    private Company.SubscriptionPlan subscriptionPlan;
-
-    @Future(message = "Subscription expiration date must be in the future")
-    private LocalDate subscriptionExpiresAt;
 }

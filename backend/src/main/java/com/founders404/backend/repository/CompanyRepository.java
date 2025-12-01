@@ -4,7 +4,6 @@ import com.founders404.backend.model.Company;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,21 +53,6 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
      * Aktív cégek keresése név alapján.
      */
     List<Company> findByIsActiveTrueAndNameContainingIgnoreCase(String name);
-
-    /**
-     * Cégek előfizetési csomag szerint.
-     */
-    List<Company> findBySubscriptionPlan(Company.SubscriptionPlan subscriptionPlan);
-
-    /**
-     * Lejárt előfizetésű cégek (subscription_expires_at < mai dátum).
-     */
-    List<Company> findBySubscriptionExpiresAtBefore(LocalDate date);
-
-    /**
-     * Hamarosan lejáró előfizetések (pl. 30 napon belül).
-     */
-    List<Company> findBySubscriptionExpiresAtBetween(LocalDate startDate, LocalDate endDate);
 
     /**
      * Cégek város szerint.
