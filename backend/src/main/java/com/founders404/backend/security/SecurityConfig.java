@@ -36,6 +36,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll() // H2 console hozzáférés (fejlesztéshez)
                         .requestMatchers("/error").permitAll()
+
+                        // Védett endpointok (JWT token kell)
+                        .requestMatchers("/api/products/**").authenticated()
+                        .requestMatchers("/api/inventory/**").authenticated()
+                        .requestMatchers("/api/notifications/**").authenticated()
+
                         // Minden más endpoint védelme
                         .anyRequest().authenticated()
                 )
