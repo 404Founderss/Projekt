@@ -37,10 +37,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      * Visszaadja: categoryId, termékek száma, összes készlet érték
      */
     @Query("""
-        SELECT p.categoryId, 
-               COUNT(p), 
+        SELECT p.categoryId,
+               COUNT(p),
                SUM(p.netPurchasePrice * p.currentStock)
-        FROM Product p
         FROM Product p
         WHERE p.isActive = true
         AND p.categoryId IS NOT NULL
