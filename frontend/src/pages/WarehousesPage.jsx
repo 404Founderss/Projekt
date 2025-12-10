@@ -301,93 +301,6 @@ const generateProducts = (shelfId, count) => {
 };
 
 // Sample warehouse data with shelf information
-const sampleWarehousesData = [
-  {
-    id: 1,
-    name: 'Central Warehouse',
-    capacity: 10000,
-    currentStock: 7500,
-    lastUpdate: '2025-11-08 14:30',
-    shelves: [
-      { id: 'A1', occupied: true, items: 250, products: generateProducts('A1', 25) },
-      { id: 'A2', occupied: true, items: 180, products: generateProducts('A2', 18) },
-      { id: 'A3', occupied: false, items: 0, products: [] },
-      { id: 'B1', occupied: true, items: 320, products: generateProducts('B1', 32) },
-      { id: 'B2', occupied: true, items: 290, products: generateProducts('B2', 29) },
-      { id: 'B3', occupied: true, items: 150, products: generateProducts('B3', 15) },
-      { id: 'C1', occupied: true, items: 410, products: generateProducts('C1', 41) },
-      { id: 'C2', occupied: false, items: 0, products: [] },
-      { id: 'C3', occupied: true, items: 200, products: generateProducts('C3', 20) },
-      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
-      { id: 'D2', occupied: true, items: 270, products: generateProducts('D2', 27) },
-      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
-    ]
-  },
-  {
-    id: 2,
-    name: 'North Distribution Center',
-    capacity: 15000,
-    currentStock: 12000,
-    lastUpdate: '2025-11-08 13:15',
-    shelves: [
-      { id: 'A1', occupied: true, items: 450, products: generateProducts('A1', 45) },
-      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
-      { id: 'A3', occupied: true, items: 420, products: generateProducts('A3', 42) },
-      { id: 'B1', occupied: true, items: 520, products: generateProducts('B1', 52) },
-      { id: 'B2', occupied: true, items: 490, products: generateProducts('B2', 49) },
-      { id: 'B3', occupied: true, items: 350, products: generateProducts('B3', 35) },
-      { id: 'C1', occupied: true, items: 610, products: generateProducts('C1', 61) },
-      { id: 'C2', occupied: true, items: 580, products: generateProducts('C2', 58) },
-      { id: 'C3', occupied: true, items: 400, products: generateProducts('C3', 40) },
-      { id: 'D1', occupied: true, items: 480, products: generateProducts('D1', 48) },
-      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
-      { id: 'D3', occupied: true, items: 440, products: generateProducts('D3', 44) }
-    ]
-  },
-  {
-    id: 3,
-    name: 'South Storage Facility',
-    capacity: 8000,
-    currentStock: 3200,
-    lastUpdate: '2025-11-08 12:45',
-    shelves: [
-      { id: 'A1', occupied: true, items: 180, products: generateProducts('A1', 18) },
-      { id: 'A2', occupied: false, items: 0, products: [] },
-      { id: 'A3', occupied: false, items: 0, products: [] },
-      { id: 'B1', occupied: true, items: 220, products: generateProducts('B1', 22) },
-      { id: 'B2', occupied: true, items: 190, products: generateProducts('B2', 19) },
-      { id: 'B3', occupied: false, items: 0, products: [] },
-      { id: 'C1', occupied: true, items: 310, products: generateProducts('C1', 31) },
-      { id: 'C2', occupied: false, items: 0, products: [] },
-      { id: 'C3', occupied: false, items: 0, products: [] },
-      { id: 'D1', occupied: true, items: 280, products: generateProducts('D1', 28) },
-      { id: 'D2', occupied: true, items: 170, products: generateProducts('D2', 17) },
-      { id: 'D3', occupied: false, items: 0, products: [] }
-    ]
-  },
-  {
-    id: 4,
-    name: 'East Regional Hub',
-    capacity: 12000,
-    currentStock: 9600,
-    lastUpdate: '2025-11-08 15:00',
-    shelves: [
-      { id: 'A1', occupied: true, items: 350, products: generateProducts('A1', 35) },
-      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
-      { id: 'A3', occupied: true, items: 320, products: generateProducts('A3', 32) },
-      { id: 'B1', occupied: true, items: 420, products: generateProducts('B1', 42) },
-      { id: 'B2', occupied: true, items: 390, products: generateProducts('B2', 39) },
-      { id: 'B3', occupied: true, items: 450, products: generateProducts('B3', 45) },
-      { id: 'C1', occupied: true, items: 510, products: generateProducts('C1', 51) },
-      { id: 'C2', occupied: true, items: 480, products: generateProducts('C2', 48) },
-      { id: 'C3', occupied: true, items: 300, products: generateProducts('C3', 30) },
-      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
-      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
-      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
-    ]
-  }
-];
-
 // Load user-saved warehouses from localStorage (created in NewWarehousePage)
 const loadSavedWarehouses = () => {
   try {
@@ -1099,7 +1012,10 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
 
   if (warehouse.floorPlanData) {
     try {
-      shapes = JSON.parse(warehouse.floorPlanData);
+      let parsedData = JSON.parse(warehouse.floorPlanData);
+      // Handle both formats: array directly or object with shapes property
+      shapes = Array.isArray(parsedData) ? parsedData : (parsedData.shapes || []);
+      
       if (displayShelves.length === 0) {
         displayShelves = shapes
           .filter(shape => shape.type === 'shelf')
@@ -1207,14 +1123,14 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
             </Typography>
 
             {/* If warehouse has a saved konva layout, render it exactly; otherwise fall back to the grid */}
-            {warehouse.layout && Array.isArray(warehouse.layout.shapes) && warehouse.layout.shapes.length > 0 ? (
+            {shapes.length > 0 ? (
               <Box ref={el => { /* placeholder */ }}>
                 <Box
                   ref={el => { /* keep placeholder for layout */ }}
                   sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' }, position: 'relative' }}
                 >
                       <KonvaLayoutRenderer
-                        shapes={warehouse.layout.shapes}
+                        shapes={shapes}
                         onRectClick={(shape) => {
                           // only handle clicks for actual shelves (renderer will already filter non-shelves,
                           // but double-check here). Non-shelf shapes (walls) won't open popovers.
@@ -1488,11 +1404,6 @@ const WarehousesPage = () => {
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
   const [savedWarehousesState, setSavedWarehousesState] = useState(() => loadSavedWarehouses());
-  // Keep an editable copy of the built-in/sample warehouses so shelves can be updated in-memory
-  const [sampleWarehousesState, setSampleWarehousesState] = useState(() => sampleWarehousesData.map(w => ({
-    ...w,
-    shelves: (w.shelves || []).map(s => ({ ...s, products: Array.isArray(s.products) ? [...s.products] : [] }))
-  })));
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -1635,45 +1546,38 @@ const WarehousesPage = () => {
       return;
     }
 
-    // otherwise update sample warehouses copy
-    setSampleWarehousesState(prev => {
-      const idx = prev.findIndex(w => String(w.id) === String(warehouseId));
-      if (idx === -1) return prev;
-      const next = prev.map(p => ({ ...p }));
-      next[idx] = updater({ ...next[idx] });
-      return next;
-    });
+    // Sample warehouses are no longer supported - all updates go through backend
   };
 
-  const handleDeleteWarehouse = (warehouse) => {
+  const handleDeleteWarehouse = async (warehouse) => {
     if (!warehouse) return;
     const id = warehouse.id;
-    // If it's in saved, remove from saved and persist
-    if (savedWarehousesState.some(s => String(s.id) === String(id))) {
-      const next = savedWarehousesState.filter(s => String(s.id) !== String(id));
-      setSavedWarehousesState(next);
+    
+    try {
+      // Delete from backend
+      await warehouseService.delete(id);
+      
+      // Update local state - remove from both saved and api warehouses
+      setSavedWarehousesState(prev => prev.filter(s => String(s.id) !== String(id)));
+      setWarehousesData(prev => prev.filter(w => String(w.id) !== String(id)));
+      
+      // Try to remove from localStorage if it was saved there
       try {
         const raw = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
         const updated = raw.filter(rs => String(rs.id) !== String(id));
         localStorage.setItem('savedWarehouses', JSON.stringify(updated));
       } catch (e) {
-        console.error('Failed to delete saved warehouse', e);
+        console.error('Failed to update localStorage', e);
       }
-      // if the deleted warehouse is currently open, close the modal
+      
+      // Close modal if the deleted warehouse is currently open
       if (selectedWarehouse && String(selectedWarehouse.id) === String(id)) {
         handleCloseModal();
       }
-      return;
+    } catch (error) {
+      console.error('Failed to delete warehouse:', error);
+      alert('Failed to delete warehouse. Please try again.');
     }
-
-    // Otherwise remove from sample state
-    setSampleWarehousesState(prev => {
-      const next = prev.filter(w => String(w.id) !== String(id));
-      if (selectedWarehouse && String(selectedWarehouse.id) === String(id)) {
-        handleCloseModal();
-      }
-      return next;
-    });
   };
 
   // Add an item to a shelf. Accepts optional `product` object.
@@ -1736,8 +1640,8 @@ const WarehousesPage = () => {
     { text: 'Statistics', icon: <StatisticsIcon />, path: '/statistics' },
   ];
 
-  // Combine saved warehouses with editable sample data and calculate summary statistics
-  const allWarehousesData = [...savedWarehousesState, ...warehousesData, ...sampleWarehousesState];
+  // Use only warehouses from the backend API
+  const allWarehousesData = [...savedWarehousesState, ...warehousesData];
   const totalWarehouses = allWarehousesData.length;
   const totalCapacity = allWarehousesData.reduce((sum, wh) => sum + (wh.capacity || 0), 0);
   const totalStock = allWarehousesData.reduce((sum, wh) => sum + (wh.currentStock || 0), 0);

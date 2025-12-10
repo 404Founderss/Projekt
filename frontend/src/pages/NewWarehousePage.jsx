@@ -361,7 +361,7 @@ const NewWarehousePage = () => {
   };
 
   // --- Mentés / Törlés ---
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!shapes || shapes.length === 0) {
       alert('Please add at least one shelf or wall to the layout before saving.');
       return;
@@ -371,24 +371,28 @@ const NewWarehousePage = () => {
       alert('Please enter a name for the warehouse.');
       return;
     }
-    const dataToSave = {
-      id: `W-${Date.now()}`,
-      name: warehouseName,
-      layout: { shapes },
-      createdAt: new Date().toISOString()
-    };
 
     try {
-      const existing = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
-      existing.push(dataToSave);
-      localStorage.setItem('savedWarehouses', JSON.stringify(existing));
-      console.log('--- WAREHOUSE SAVED (KONVA DATA) ---', dataToSave);
-      // notify other parts of the app in the same tab
-      try { window.dispatchEvent(new Event('savedWarehousesUpdated')); } catch (e) { /* ignore */ }
-      alert(`Warehouse '${warehouseName}' saved! It will appear in Warehouses list.`);
-    } catch (err) {
-      console.error('Failed to save warehouse', err);
-      alert('Failed to save warehouse. See console for details.');
+      // Prepare data for backend
+      const warehouseData = {
+        companyId: 1, // Default company ID - can be changed based on user's company
+        name: warehouseName,
+        code: `W-${Date.now()}`, // Generate a unique code
+        floorPlanData: JSON.stringify(shapes), // Store shapes array directly as JSON
+        description: `Created on ${new Date().toLocaleString()}`
+      };
+
+      // Call backend API to create warehouse
+      const response = await warehouseService.create(warehouseData);
+      
+      console.log('--- WAREHOUSE SAVED TO DATABASE ---', response.data);
+      alert(`Warehouse '${warehouseName}' saved successfully!`);
+      
+      // Redirect to warehouses page
+      navigate('/warehouses');
+    } catch (error) {
+      console.error('Failed to save warehouse to database:', error);
+      alert(`Error: ${error.response?.data?.error || error.message}`);
     }
   };
 
