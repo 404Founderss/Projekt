@@ -4,7 +4,9 @@ import com.founders404.backend.dto.ChangePasswordRequest;
 import com.founders404.backend.dto.ProfileResponse;
 import com.founders404.backend.dto.UpdateProfileRequest;
 import com.founders404.backend.model.User;
+import com.founders404.backend.security.JwtUtil;
 import com.founders404.backend.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final JwtUtil jwtUtil;
 
     // Profilképek tárolási helye
     private static final String UPLOAD_DIR = "uploads/profile-pictures/";
@@ -44,6 +47,35 @@ public class UserController {
             throw new RuntimeException("User not authenticated");
         }
         return authentication.getName();
+    }
+
+    /**
+     * Jelenlegi bejelentkezett felhasználó objektumának lekérése.
+     */
+    private User getCurrentUser(HttpServletRequest request) {
+        String token = extractTokenFromRequest(request);
+        
+        if (token != null) {
+            Long userId = jwtUtil.extractUserId(token);
+            if (userId != null) {
+                return userService.findById(userId);
+            }
+        }
+        
+        // Fallback to username-based lookup
+        String username = getCurrentUsername();
+        return userService.findByUsername(username);
+    }
+
+    /**
+     * Extract JWT token from request header.
+     */
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
     }
 
     /**
@@ -71,7 +103,7 @@ public class UserController {
     }
 
     /**
-     * Profil frissítése (email módosítás).
+     * Profil frissítése (username és email módosítás).
      * PUT /api/user/profile
      * Body: UpdateProfileRequest
      */
@@ -79,7 +111,7 @@ public class UserController {
     public ResponseEntity<Object> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
         try {
             String username = getCurrentUsername();
-            User updatedUser = userService.updateProfile(username, request.getEmail());
+            User updatedUser = userService.updateProfile(username, request.getUsername(), request.getEmail());
 
             ProfileResponse response = new ProfileResponse(
                     updatedUser.getId(),
@@ -102,10 +134,13 @@ public class UserController {
      * Body: ChangePasswordRequest
      */
     @PutMapping("/password")
-    public ResponseEntity<Map<String, String>> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<Map<String, String>> changePassword(
+            HttpServletRequest request,
+            @Valid @RequestBody ChangePasswordRequest changePasswordRequest) {
         try {
-            String username = getCurrentUsername();
-            userService.changePassword(username, request.getOldPassword(), request.getNewPassword());
+            // Get current user by ID to avoid username lookup issues after username change
+            User currentUser = getCurrentUser(request);
+            userService.changePasswordById(currentUser.getId(), changePasswordRequest.getOldPassword(), changePasswordRequest.getNewPassword());
 
             return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
         } catch (RuntimeException e) {

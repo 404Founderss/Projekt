@@ -279,7 +279,7 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
 };
 
 const ProfilePage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
@@ -361,12 +361,25 @@ const ProfilePage = () => {
     setLoading(true);
 
     try {
-      // Update email if changed
-      if (formData.email) {
-        await userService.updateProfile(formData.email);
+      let updatedUsername = formData.username;
+      let updatedEmail = formData.email;
+
+      // IMPORTANT: Update username and email FIRST before changing password
+      // This is necessary because the backend password change uses getCurrentUser()
+      // which looks up by the username from the JWT token
+      if (formData.username && formData.email) {
+        const response = await userService.updateProfile(formData.username, formData.email);
+        updatedUsername = response.data.username;
+        updatedEmail = response.data.email;
+        
+        // Update user in auth context immediately after profile update
+        updateUser({
+          username: updatedUsername,
+          role: user.role
+        });
       }
 
-      // Change password if provided
+      // Change password if provided (do this AFTER username change)
       if (formData.newPassword) {
         if (formData.newPassword !== formData.confirmPassword) {
           setErrorMessage('New passwords do not match!');

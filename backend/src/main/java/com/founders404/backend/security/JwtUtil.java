@@ -24,12 +24,20 @@ public class JwtUtil {
     private long expiration;
 
     /**
-     * JWT token generálás username és role alapján.
+     * JWT token generálás username, role és user ID alapján.
      */
-    public String generateToken(String username, String role) {
+    public String generateToken(String username, String role, Long userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
+        claims.put("userId", userId);
         return createToken(claims, username);
+    }
+
+    /**
+     * JWT token generálás username és role alapján (backward compatibility).
+     */
+    public String generateToken(String username, String role) {
+        return generateToken(username, role, null);
     }
 
     /**
@@ -57,6 +65,19 @@ public class JwtUtil {
      */
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    /**
+     * User ID kinyerése a tokenből.
+     */
+    public Long extractUserId(String token) {
+        return extractClaim(token, claims -> {
+            Object userId = claims.get("userId");
+            if (userId instanceof Number) {
+                return ((Number) userId).longValue();
+            }
+            return null;
+        });
     }
 
     /**
