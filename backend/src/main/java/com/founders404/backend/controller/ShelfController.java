@@ -7,6 +7,7 @@ import com.founders404.backend.dto.UpdateShelfRequest;
 import com.founders404.backend.model.Product;
 import com.founders404.backend.model.Shelf;
 import com.founders404.backend.service.ProductService;
+import com.founders404.backend.service.CategoryService;
 import com.founders404.backend.service.ShelfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class ShelfController {
 
     private final ShelfService shelfService;
     private final ProductService productService;
+    private final CategoryService categoryService;
 
     /**
      * Get all shelves with filtering options.
@@ -287,6 +289,13 @@ public class ShelfController {
         response.setId(product.getId());
         response.setCompanyId(product.getCompanyId());
         response.setCategoryId(product.getCategoryId());
+        if (product.getCategoryId() != null) {
+            try {
+                response.setCategoryName(categoryService.findById(product.getCategoryId()).getName());
+            } catch (Exception e) {
+                response.setCategoryName(null);
+            }
+        }
         response.setSupplierId(product.getSupplierId());
         response.setShelfId(product.getShelfId());
         response.setName(product.getName());

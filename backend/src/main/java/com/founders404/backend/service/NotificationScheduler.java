@@ -1,14 +1,17 @@
 package com.founders404.backend.service;
 
+import com.founders404.backend.model.Notification;
 import com.founders404.backend.model.NotificationType;
 import com.founders404.backend.model.Product;
 import com.founders404.backend.model.User;
+import com.founders404.backend.repository.NotificationRepository;
 import com.founders404.backend.repository.ProductRepository;
 import com.founders404.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -21,58 +24,89 @@ public class NotificationScheduler {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository;
 
     /**
      * Alacsony készlet ellenőrzés.
-     * Futtatás: óránként (3600000 ms = 1 óra)
-     * Vagy napi egyszer: cron = "0 0 9 * * ?" (minden nap reggel 9-kor)
+     * Futtatás: percenként (60000 ms = 1 perc)
+     * Küszöbérték: 10 egység alatt
+     * Duplikációs ellenőrzés: csak akkor hoz létre notifikációt, ha az elmúlt 30 percben nem volt
      */
-    @Scheduled(fixedRate = 3600000) // 1 óránként
-    // @Scheduled(cron = "0 0 9 * * ?") // Naponta 9:00-kor
+    @Scheduled(fixedRate = 60000) // percenként
     public void checkLowStock() {
-        System.out.println("Running scheduled task: checkLowStock");
+        System.out.println("=== Running scheduled task: checkLowStock at " + LocalDateTime.now() + " ===");
 
-        // Összes aktív termék lekérése
-        List<Product> products = productRepository.findAll();
+        try {
+            // Összes aktív termék lekérése
+            List<Product> products = productRepository.findAll();
+            System.out.println("Found " + products.size() + " total products to check");
 
-        for (Product product : products) {
-            // Ha van minStockLevel beállítva és elérte vagy alatta van
-            if (product.getMinStockLevel() != null
-                    && product.getCurrentStock() != null
-                    && product.getCurrentStock() <= product.getMinStockLevel()) {
+            // Filter only products with low stock
+            List<Product> lowStockProducts = products.stream()
+                    .filter(p -> p.getCurrentStock() != null && p.getCurrentStock() < 10)
+                    .toList();
+            System.out.println("Found " + lowStockProducts.size() + " products with low stock (<10 units)");
 
-                // Cégen belüli összes user értesítése (vagy csak admin/owner)
+            int notificationsCreated = 0;
+
+            for (Product product : lowStockProducts) {
+                System.out.println("Processing low-stock product: '" + product.getName() + "' (Stock: " + 
+                                 product.getCurrentStock() + ", CompanyId: " + product.getCompanyId() + ")");
+
+                // Cégen belüli összes user értesítése
                 List<User> usersToNotify = getUsersToNotify(product.getCompanyId());
+                System.out.println("  -> Found " + usersToNotify.size() + " users to notify for company: " + product.getCompanyId());
+
+                if (usersToNotify.isEmpty() && product.getCompanyId() != null) {
+                    System.out.println("  -> WARNING: No users found for company " + product.getCompanyId());
+                }
 
                 for (User user : usersToNotify) {
-                    // Ellenőrizzük, hogy még nem küldetünk-e már értesítést
-                    // (Opcionális: duplikáció ellenőrzés)
+                    try {
+                        // Duplikáció ellenőrzés: volt-e már notifikáció az elmúlt 30 percben erre a termékhöz?
+                        LocalDateTime thirtyMinutesAgo = LocalDateTime.now().minusMinutes(30);
+                        List<Notification> recentNotifications = notificationRepository
+                                .findRecentByUserIdAndProductIdAndType(
+                                        user.getId(),
+                                        product.getId(),
+                                        NotificationType.LOW_STOCK
+                                );
 
-                    String title = product.getCurrentStock() == 0
-                            ? "Készlet kifogyott!"
-                            : "Alacsony készlet!";
+                        boolean recentNotificationExists = recentNotifications.stream()
+                                .anyMatch(n -> n.getCreatedAt().isAfter(thirtyMinutesAgo));
 
-                    String message = String.format(
-                            "A(z) '%s' (SKU: %s) termék készlete alacsony! Jelenlegi: %d, Minimum: %d",
-                            product.getName(),
-                            product.getSku(),
-                            product.getCurrentStock(),
-                            product.getMinStockLevel()
-                    );
+                        if (!recentNotificationExists) {
+                            // Alacsony készlet jellegzetesség
+                            String title = "Alacsony készlet!";
 
-                    NotificationType type = product.getCurrentStock() == 0
-                            ? NotificationType.STOCK_OUT
-                            : NotificationType.LOW_STOCK;
+                            String message = String.format(
+                                    "A(z) '%s' termék készlete alacsony! Jelenlegi: %d",
+                                    product.getName(),
+                                    product.getCurrentStock()
+                            );
 
-                    notificationService.createNotification(
-                            user,
-                            type,
-                            title,
-                            message,
-                            product
-                    );
+                            Notification createdNotification = notificationService.createNotification(
+                                    user,
+                                    NotificationType.LOW_STOCK,
+                                    title,
+                                    message,
+                                    product
+                            );
+                            notificationsCreated++;
+                            System.out.println("     -> Created notification ID: " + createdNotification.getId() + " for user: " + user.getUsername());
+                        } else {
+                            System.out.println("     -> Skipped (recent notification exists for user: " + user.getUsername() + ")");
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Error creating notification for user " + user.getUsername() + ": " + e.getMessage());
+                        e.printStackTrace();
+                    }
                 }
             }
+            System.out.println("=== Completed checkLowStock: " + notificationsCreated + " notifications created ===\n");
+        } catch (Exception e) {
+            System.err.println("Fatal error in checkLowStock scheduler: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -82,17 +116,26 @@ public class NotificationScheduler {
      * Opcionális: csak OWNER és CLERK role-ok
      */
     private List<User> getUsersToNotify(Long companyId) {
-        if (companyId == null) {
-            // Ha nincs cég (régi adatok), akkor üres lista
+        try {
+            if (companyId == null) {
+                System.out.println("WARNING: Product has null companyId - no users to notify!");
+                return List.of();
+            }
+
+            // Összes user a cégnél
+            List<User> users = userRepository.findByCompanyId(companyId);
+            System.out.println("  -> Company " + companyId + " has " + users.size() + " users");
+            
+            return users;
+
+            // Vagy csak bizonyos role-ok:
+            // return userRepository.findByCompanyId(companyId).stream()
+            //     .filter(u -> u.getRole() == Role.OWNER || u.getRole() == Role.CLERK)
+            //     .toList();
+        } catch (Exception e) {
+            System.err.println("Error getting users for company " + companyId + ": " + e.getMessage());
+            e.printStackTrace();
             return List.of();
         }
-
-        // Összes user a cégnél
-        return userRepository.findByCompanyId(companyId);
-
-        // Vagy csak bizonyos role-ok:
-        // return userRepository.findByCompanyId(companyId).stream()
-        //     .filter(u -> u.getRole() == Role.OWNER || u.getRole() == Role.CLERK)
-        //     .toList();
     }
 }

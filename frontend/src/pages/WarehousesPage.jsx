@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { warehouseService } from '../services/warehouseService';
 import { shelfService } from '../services/shelfService';
 import { productService } from '../services/productService';
+import { inventoryService } from '../services/inventoryService';
+import { notificationService } from '../services/notificationService';
 import {
   Box,
   Drawer,
@@ -85,37 +87,11 @@ const theme = createTheme({
   },
 });
 
-// Sample notifications data
-const sampleNotifications = [
-  {
-    id: 1,
-    type: 'success',
-    title: 'Shipment Delivered',
-    message: 'Order #12345 has been successfully delivered to warehouse A',
-    timestamp: '5 minutes ago',
-    read: false
-  },
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Low Stock Alert',
-    message: 'Product SKU-001 in warehouse B is running low on stock',
-    timestamp: '1 hour ago',
-    read: false
-  },
-  {
-    id: 3,
-    type: 'info',
-    title: 'Warehouse Maintenance',
-    message: 'Scheduled maintenance for warehouse C on Nov 15, 2025',
-    timestamp: '2 hours ago',
-    read: true
-  },
-];
+
 
 // Notification Menu Component
 const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -260,23 +236,6 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
           </Box>
         )}
       </Box>
-
-      {/* Footer */}
-      <Box sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa', textAlign: 'center' }}>
-        <Typography
-          variant="body2"
-          sx={{
-            color: 'primary.main',
-            fontWeight: 600,
-            cursor: 'pointer',
-            '&:hover': {
-              textDecoration: 'underline',
-            }
-          }}
-        >
-          View All Notifications
-        </Typography>
-      </Box>
     </Menu>
   );
 };
@@ -383,7 +342,7 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
         // keep UI-friendly fields available
         quantity: p.quantity ?? p.currentStock ?? 0,
         unit: p.unit || 'pcs',
-        category: p.category || p.description || p.categoryId || 'General',
+        category: p.categoryName || 'Uncategorized',
         status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
       }));
       console.log('Loaded products for shelf', shelfIdToUse, normalized);
@@ -404,7 +363,7 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
           ...p,
           quantity: p.quantity ?? p.currentStock ?? 0,
           unit: p.unit || 'pcs',
-          category: p.category || p.description || p.categoryId || 'General',
+          category: p.categoryName || 'Uncategorized',
           status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
         }));
         setProducts(normalized);
@@ -1517,7 +1476,7 @@ const WarehousesPage = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [warehouseToDelete, setWarehouseToDelete] = useState(null);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
-  const [notifications] = useState(sampleNotifications);
+  const [notifications, setNotifications] = useState([]);
 
   // API state management
   const [warehousesData, setWarehousesData] = useState([]);
@@ -1527,6 +1486,7 @@ const WarehousesPage = () => {
   // Load warehouses from API
   useEffect(() => {
     loadWarehouses();
+    loadNotifications();
   }, []);
 
   const loadWarehouses = async () => {
@@ -1584,12 +1544,30 @@ const WarehousesPage = () => {
     }
   };
 
+  const loadNotifications = async () => {
+    try {
+      const notificationsResponse = await notificationService.getUnread();
+      const apiNotifications = notificationsResponse.data || [];
+      setNotifications(apiNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      setNotifications([]);
+    }
+  };
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
   const handleNotificationClick = (event) => {
     setNotificationAnchorEl(event.currentTarget);
+    // Mark all notifications as read in the backend
+    notificationService.markAllAsRead()
+      .then(() => {
+        // Update local state to reflect that all are read
+        setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      })
+      .catch(error => console.error('Failed to mark notifications as read:', error));
   };
 
   const handleNotificationClose = () => {
@@ -1628,7 +1606,7 @@ const WarehousesPage = () => {
                 ...p,
                 quantity: p.quantity ?? p.currentStock ?? 0,
                 unit: p.unit || 'pcs',
-                category: p.category || p.description || p.categoryId || 'General',
+                category: p.categoryName || 'Uncategorized',
                 status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
               }));
               return {
@@ -1833,7 +1811,8 @@ const WarehousesPage = () => {
         name: prod.name,
         unit: prod.unit || 'pcs',
         currentStock: prod.quantity || 1,
-        description: prod.category || 'Added to shelf',
+        categoryName: prod.category || 'General',
+        description: prod.description || '',
         currency: 'HUF'
       };
 
@@ -2054,7 +2033,7 @@ const WarehousesPage = () => {
                 },
               }}
             >
-              <Badge badgeContent={notifications.filter(n => !n.read).length} color="error">
+              <Badge badgeContent={notifications.filter(n => !n.isRead).length} color="error">
                 <NotificationsIcon />
               </Badge>
             </IconButton>

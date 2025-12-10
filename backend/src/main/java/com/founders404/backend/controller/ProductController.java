@@ -3,12 +3,20 @@ package com.founders404.backend.controller;
 import com.founders404.backend.dto.CreateProductRequest;
 import com.founders404.backend.dto.ProductResponse;
 import com.founders404.backend.dto.UpdateProductRequest;
+import com.founders404.backend.model.InventoryMovement;
+import com.founders404.backend.model.MovementType;
 import com.founders404.backend.model.Product;
+import com.founders404.backend.model.User;
+import com.founders404.backend.model.Category;
+import com.founders404.backend.service.InventoryService;
 import com.founders404.backend.service.ProductService;
+import com.founders404.backend.service.CategoryService;
+import com.founders404.backend.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,6 +38,9 @@ import java.util.stream.Collectors;
 public class ProductController {
 
     private final ProductService productService;
+    private final CategoryService categoryService;
+    private final InventoryService inventoryService;
+    private final UserService userService;
 
     /**
      * Összes termék lekérése szűrési lehetőségekkel.
@@ -166,7 +177,20 @@ public class ProductController {
         try {
             Product product = new Product();
             product.setCompanyId(request.getCompanyId());
-            product.setCategoryId(request.getCategoryId());
+            
+            // Handle category - prioritize categoryId, but if categoryName is provided and categoryId is null,
+            // find or create the category
+            if (request.getCategoryId() != null) {
+                product.setCategoryId(request.getCategoryId());
+            } else if (request.getCategoryName() != null && !request.getCategoryName().isBlank()) {
+                // Find or create category by name
+                Category category = categoryService.findOrCreateByName(
+                    request.getCompanyId(), 
+                    request.getCategoryName().trim()
+                );
+                product.setCategoryId(category.getId());
+            }
+            
             product.setSupplierId(request.getSupplierId());
             product.setShelfId(request.getShelfId());
             product.setName(request.getName());
@@ -302,20 +326,42 @@ public class ProductController {
     @PostMapping("/{id}/adjust")
     public ResponseEntity<Object> adjustProductQuantity(
             @PathVariable Long id,
-            @RequestBody Map<String, Integer> payload) {
+            @RequestBody Map<String, Integer> payload,
+            Authentication authentication) {
         try {
             Integer delta = payload != null ? payload.get("delta") : null;
-            if (delta == null) {
+            if (delta == null || delta == 0) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "delta is required"));
             }
 
-                Product updated = productService.adjustQuantity(id, delta);
-                String status = (updated.getCurrentStock() != null && updated.getCurrentStock() > 0) ? "Available" : "Reserved";
+            MovementType movementType = delta > 0 ? MovementType.IN : MovementType.OUT;
+            int quantity = Math.abs(delta);
+
+            if (authentication == null || authentication.getName() == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Authentication required"));
+            }
+
+            User user = userService.findByUsername(authentication.getName());
+
+            InventoryMovement movement = inventoryService.recordMovement(
+                    id,
+                    movementType,
+                    quantity,
+                    movementType == MovementType.IN ? "Manual add" : "Manual remove (sell)",
+                    null,
+                    user
+            );
+
+            Product updated = movement.getProduct();
+            String status = (updated.getCurrentStock() != null && updated.getCurrentStock() > 0) ? "Available" : "Reserved";
+
             return ResponseEntity.ok(Map.of(
                     "id", updated.getId(),
                     "newQuantity", updated.getCurrentStock(),
-                    "status", status
+                    "status", status,
+                    "movementId", movement.getId()
             ));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -369,11 +415,24 @@ public class ProductController {
      */
     private ProductResponse convertToResponse(Product product) {
         String status = (product.getCurrentStock() != null && product.getCurrentStock() > 0) ? "Available" : "Reserved";
+        
+        // Fetch category name if categoryId exists
+        String categoryName = null;
+        if (product.getCategoryId() != null) {
+            try {
+                Category category = categoryService.findById(product.getCategoryId());
+                categoryName = category.getName();
+            } catch (Exception e) {
+                // Category not found or error, leave as null
+                categoryName = null;
+            }
+        }
 
         return new ProductResponse(
             product.getId(),
             product.getCompanyId(),
             product.getCategoryId(),
+            categoryName,
             product.getSupplierId(),
             product.getShelfId(),
             product.getName(),

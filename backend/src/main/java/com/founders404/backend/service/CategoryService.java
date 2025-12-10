@@ -50,6 +50,23 @@ public class CategoryService {
     }
 
     /**
+     * Kategória keresése vagy létrehozása név alapján.
+     * Ha a kategória már létezik, visszaadja azt.
+     * Ha nem létezik, létrehozza és visszaadja.
+     */
+    @Transactional
+    public Category findOrCreateByName(Long companyId, String name) {
+        return categoryRepository.findByCompanyIdAndName(companyId, name)
+                .orElseGet(() -> {
+                    Category newCategory = new Category();
+                    newCategory.setCompanyId(companyId);
+                    newCategory.setName(name);
+                    newCategory.setDescription("Auto-created category");
+                    return categoryRepository.save(newCategory);
+                });
+    }
+
+    /**
      * Kategóriák keresése név alapján.
      */
     public List<Category> searchByName(Long companyId, String name) {

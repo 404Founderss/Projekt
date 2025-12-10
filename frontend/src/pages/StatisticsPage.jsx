@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -6,7 +6,9 @@ import {
   ListItemIcon, ListItemText, Typography, IconButton, Avatar, 
   Divider, CssBaseline, Badge, Paper, useMediaQuery, useTheme as useMuiTheme,
   Grid, Table, TableBody, TableCell, TableContainer, TableHead, 
-  TableRow, Chip, Menu, MenuItem // Added Menu, MenuItem
+  TableRow, Chip, Menu, MenuItem,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon, AccountCircle as ProfileIcon,
@@ -15,12 +17,17 @@ import {
   Notifications as NotificationsIcon, Menu as MenuIcon,
   TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon,
   Inventory as InventoryIcon, Warning as WarningIcon,
-  CheckCircle as SuccessIcon, Info as InfoIcon // Added SuccessIcon, InfoIcon
+  CheckCircle as SuccessIcon, Info as InfoIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, 
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { statisticsService } from '../services/statisticsService';
+import { inventoryService } from '../services/inventoryService';
+import { productService } from '../services/productService';
+import { warehouseService } from '../services/warehouseService';
+import { notificationService } from '../services/notificationService';
 
 // Theme Configuration
 const theme = createTheme({
@@ -33,37 +40,9 @@ const theme = createTheme({
 
 const drawerWidth = 260;
 
-// --- SAMPLE NOTIFICATIONS DATA (Added) ---
-const sampleNotifications = [
-  {
-    id: 1,
-    type: 'success',
-    title: 'Shipment Delivered',
-    message: 'Order #12345 has been successfully delivered to warehouse A',
-    timestamp: '5 minutes ago',
-    read: false
-  },
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Low Stock Alert',
-    message: 'Product SKU-001 in warehouse B is running low on stock',
-    timestamp: '1 hour ago',
-    read: false
-  },
-  {
-    id: 3,
-    type: 'info',
-    title: 'Warehouse Maintenance',
-    message: 'Scheduled maintenance for warehouse C on Nov 15, 2025',
-    timestamp: '2 hours ago',
-    read: true
-  }
-];
-
 // --- NOTIFICATION MENU COMPONENT (Added) ---
 const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -134,55 +113,6 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
   );
 };
 
-// Sample Data
-const bestSellers = [
-  { name: 'Product A', sales: 4200, trend: '+12%' },
-  { name: 'Product B', sales: 3800, trend: '+8%' },
-  { name: 'Product C', sales: 3400, trend: '+15%' },
-  { name: 'Product D', sales: 2900, trend: '+5%' },
-  { name: 'Product E', sales: 2600, trend: '+3%' }
-];
-
-const lowestStock = [
-  { name: 'Widget XL', stock: 45, min: 100, status: 'critical' },
-  { name: 'Component Z', stock: 78, min: 150, status: 'low' },
-  { name: 'Tool Set Pro', stock: 92, min: 120, status: 'low' },
-  { name: 'Material Y', stock: 110, min: 200, status: 'warning' },
-  { name: 'Part Alpha', stock: 135, min: 180, status: 'warning' }
-];
-
-const highestStock = [
-  { name: 'Basic Supply A', stock: 8900, capacity: 10000, percent: 89, warehouse: 'North' },
-  { name: 'Material B', stock: 7200, capacity: 8000, percent: 90, warehouse: 'Central' },
-  { name: 'Component C', stock: 6800, capacity: 8000, percent: 85, warehouse: 'East' },
-  { name: 'Product D', stock: 5400, capacity: 6500, percent: 83, warehouse: 'South' },
-  { name: 'Item E', stock: 4900, capacity: 6000, percent: 82, warehouse: 'North' }
-];
-
-const salesData = [
-  { month: 'Jun', sales: 18500 },
-  { month: 'Jul', sales: 22000 },
-  { month: 'Aug', sales: 25800 },
-  { month: 'Sep', sales: 23400 },
-  { month: 'Oct', sales: 28900 },
-  { month: 'Nov', sales: 32100 }
-];
-
-const warehouseData = [
-  { name: 'Central', value: 75 },
-  { name: 'North', value: 80 },
-  { name: 'South', value: 40 },
-  { name: 'East', value: 80 }
-];
-
-const categoryData = [
-  { name: 'Electronics', value: 35, color: '#2196F3' },
-  { name: 'Tools', value: 25, color: '#4CAF50' },
-  { name: 'Materials', value: 20, color: '#FF9800' },
-  { name: 'Components', value: 15, color: '#9C27B0' },
-  { name: 'Others', value: 5, color: '#757575' }
-];
-
 // Menu Items Configuration
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
@@ -233,9 +163,236 @@ const StatisticsPage = () => {
   const [selectedPage, setSelectedPage] = useState('Statistics');
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // --- NOTIFICATION STATE (Added) ---
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [metrics, setMetrics] = useState({
+    totalSalesQty: 0,
+    activeProducts: 0,
+    lowStockAlerts: 0
+  });
+  const [topSellers, setTopSellers] = useState([]);
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [highStockProducts, setHighStockProducts] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
+  const [warehouseData, setWarehouseData] = useState([]);
+  const [salesData, setSalesData] = useState([]);
+  const [animationKey, setAnimationKey] = useState(0);
+
+  // --- NOTIFICATION STATE ---
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
-  const [notifications] = useState(sampleNotifications);
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        const now = new Date();
+        const startWindow = new Date();
+        startWindow.setMonth(startWindow.getMonth() - 11); // Get last 12 months of data
+        startWindow.setDate(1);
+        startWindow.setHours(0, 0, 0, 0);
+
+        const startIso = startWindow.toISOString();
+        const endIso = now.toISOString();
+
+        console.log('Date range for movements:', { startIso, endIso });
+
+        const [
+          productsRes,
+          lowStockRes,
+          topSellingRes,
+          topSellingAllRes,
+          categoryRes,
+          turnoverRes,
+          movementsRes,
+          warehousesRes
+        ] = await Promise.all([
+          productService.getAll(),
+          inventoryService.getLowStock(),
+          statisticsService.getTopSelling(5),
+          statisticsService.getTopSelling(1000), // Get all products for total sales calculation
+          statisticsService.getCategoryDistribution(),
+          statisticsService.getInventoryTurnover(startIso, endIso),
+          inventoryService.getMovements(startIso, endIso),
+          warehouseService.getAll()
+        ]);
+
+        const products = productsRes.data || [];
+        const lowStock = lowStockRes.data || [];
+        const topSelling = topSellingRes.data || [];
+        const topSellingAll = topSellingAllRes.data || [];
+        const categories = categoryRes.data || [];
+        const turnover = turnoverRes.data || {};
+        const movements = movementsRes.data || [];
+        const warehouses = warehousesRes.data || [];
+
+        console.log('Stats loaded:', {
+          productsCount: products.length,
+          topSellingCount: topSelling.length,
+          topSellingAllCount: topSellingAll.length,
+          movementsCount: movements.length,
+          warehousesCount: warehouses.length,
+          turnover,
+          sampleMovements: movements.slice(0, 3)
+        });
+
+        const activeProducts = products.filter(p => p.isActive !== false).length;
+
+        // Fetch notifications from backend
+        let lowStockAlerts = 0;
+        try {
+          const notificationsResponse = await notificationService.getUnread();
+          const apiNotifications = notificationsResponse.data || [];
+          setNotifications(apiNotifications);
+          lowStockAlerts = apiNotifications.length;
+        } catch (error) {
+          console.error('Failed to load notifications:', error);
+          setNotifications([]);
+          lowStockAlerts = 0;
+        }
+        
+        // Calculate total sales from all selling products
+        let totalSalesQty = 0;
+        if (topSellingAll && topSellingAll.length > 0) {
+          totalSalesQty = topSellingAll.reduce((sum, item) => sum + (Number(item.totalSold) || 0), 0);
+        } else if (turnover.totalGoodsSold) {
+          totalSalesQty = Number(turnover.totalGoodsSold);
+        }
+
+        // Create a map of shelf IDs to warehouse names
+        const shelfToWarehouseMap = new Map();
+        (warehouses || []).forEach((warehouse) => {
+          (warehouse.shelves || []).forEach((shelf) => {
+            if (shelf && shelf.id) {
+              shelfToWarehouseMap.set(shelf.id, warehouse.name);
+            }
+          });
+        });
+
+        const sortedHighStock = [...products]
+          .sort((a, b) => (b.currentStock || 0) - (a.currentStock || 0))
+          .slice(0, 5)
+          .map((p) => {
+            const capacity = p.maxStockLevel || p.optimalStockLevel || 0;
+            const percent = capacity > 0 ? Math.round(((p.currentStock || 0) / capacity) * 100) : 0;
+            const warehouseName = p.shelfId ? shelfToWarehouseMap.get(p.shelfId) : null;
+            return {
+              name: p.name,
+              stock: p.currentStock || 0,
+              capacity,
+              percent,
+              warehouse: warehouseName || p.warehouseName || 'N/A'
+            };
+          });
+
+        const topSellerRows = topSelling.map((item) => ({
+          name: item.productName,
+          sales: item.totalSold || 0,
+          sku: item.sku
+        }));
+
+        const categoryRows = categories.map((c, index) => ({
+          name: c.categoryName,
+          value: Number(c.productCount || 0),
+          color: ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#757575'][index % 5]
+        }));
+
+        const shelfToWarehouse = new Map();
+        warehouses.forEach((warehouse) => {
+          (warehouse.shelves || []).forEach((shelf) => {
+            if (shelf && shelf.id) {
+              shelfToWarehouse.set(shelf.id, warehouse.id);
+            }
+          });
+        });
+
+        const warehouseStockMap = new Map();
+        products.forEach((product) => {
+          if (!product.shelfId) return;
+          const warehouseId = shelfToWarehouse.get(product.shelfId);
+          if (!warehouseId) return;
+          const currentTotal = warehouseStockMap.get(warehouseId) || 0;
+          warehouseStockMap.set(warehouseId, currentTotal + (product.currentStock || 0));
+        });
+
+        const warehouseRows = warehouses.map((warehouse) => {
+          const shelves = (warehouse.shelves || []).filter((shelf) => shelf.type === 'shelf');
+          const shelfCapacity = shelves.reduce((sum, shelf) => sum + (shelf.maxCapacity || 0), 0);
+          const warehouseCapacity = shelfCapacity > 0 ? shelfCapacity : (warehouse.capacity || 0);
+          const warehouseStock = warehouseStockMap.get(warehouse.id) || 0;
+          const utilization = warehouseCapacity > 0
+            ? Math.round((warehouseStock / warehouseCapacity) * 100)
+            : 0;
+          return {
+            name: warehouse.name,
+            value: utilization
+          };
+        });
+
+        const movementsOut = movements.filter((m) => m.movementType === 'OUT');
+        console.log('Movements OUT:', movementsOut.length, movementsOut.slice(0, 3));
+        
+        const monthlyMap = new Map();
+        movementsOut.forEach((m) => {
+          if (!m.timestamp || !m.quantity) return;
+          const date = new Date(m.timestamp);
+          const key = `${date.getFullYear()}-${date.getMonth()}`;
+          const currentTotal = monthlyMap.get(key) || 0;
+          monthlyMap.set(key, currentTotal + m.quantity);
+        });
+
+        console.log('Monthly map entries:', Array.from(monthlyMap.entries()));
+
+        let salesTrend = Array.from(monthlyMap.entries())
+          .map(([key, qty]) => {
+            const [year, month] = key.split('-').map(Number);
+            const monthLabel = new Date(year, month).toLocaleString('default', { month: 'short' });
+            return { month: `${monthLabel} ${year}`, sales: qty };
+          })
+          .sort((a, b) => {
+            const aDate = new Date(a.month);
+            const bDate = new Date(b.month);
+            return aDate - bDate;
+          });
+
+        // If no movement-based data, create a fallback with current month data from total sales
+        if (salesTrend.length === 0 && totalSalesQty > 0) {
+          const currentDate = new Date();
+          const monthLabel = currentDate.toLocaleString('default', { month: 'short' });
+          salesTrend = [{ month: `${monthLabel} ${currentDate.getFullYear()}`, sales: totalSalesQty }];
+        }
+
+        console.log('Sales trend data:', salesTrend);
+
+        // Get the 5 products with lowest stock
+        const lowestStockProducts = [...products]
+          .sort((a, b) => (a.currentStock ?? 0) - (b.currentStock ?? 0))
+          .slice(0, 5);
+
+        setMetrics({ totalSalesQty, activeProducts, lowStockAlerts });
+        setTopSellers(topSellerRows);
+        setLowStockProducts(lowestStockProducts);
+        setHighStockProducts(sortedHighStock);
+        setCategoryData(categoryRows);
+        setWarehouseData(warehouseRows);
+        
+        // Delay setting sales data to trigger animation
+        setTimeout(() => {
+          setSalesData(salesTrend);
+          setAnimationKey(prev => prev + 1);
+        }, 100);
+      } catch (err) {
+        console.error('Failed to load statistics:', err);
+        setError('Failed to load statistics data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStats();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -399,21 +556,34 @@ const StatisticsPage = () => {
             Statistics & Analytics
           </Typography>
 
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+
           {/* Key Metrics */}
           <Grid container spacing={3} sx={{ mb: 3 }}>
             <Grid item xs={12} sm={4}>
               <MetricCard 
                 icon={<TrendingUpIcon sx={{ color: 'primary.main', mr: 1 }} />}
                 label="Total Sales (Quantity)"
-                value="17,900"
-                subtitle="+12.3% from last month"
+                value={metrics.totalSalesQty.toLocaleString()}
+                subtitle="Last 6 months"
               />
             </Grid>
             <Grid item xs={12} sm={4}>
               <MetricCard 
                 icon={<InventoryIcon sx={{ color: 'primary.main', mr: 1 }} />}
                 label="Active Products"
-                value="342"
+                value={metrics.activeProducts.toLocaleString()}
                 subtitle="Across all warehouses"
               />
             </Grid>
@@ -421,7 +591,7 @@ const StatisticsPage = () => {
               <MetricCard 
                 icon={<WarningIcon sx={{ color: 'error.main', mr: 1 }} />}
                 label="Low Stock Alerts"
-                value="12"
+                value={metrics.lowStockAlerts.toLocaleString()}
                 subtitle="Requires attention"
                 color="error.main"
               />
@@ -432,13 +602,69 @@ const StatisticsPage = () => {
           <Grid container spacing={3} sx={{ mb: 3 }}>
             <Grid item xs={12} lg={8}>
               <ChartCard title="Monthly Sales Trend">
-                <LineChart data={salesData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="sales" stroke={green[800]} strokeWidth={3} />
+                <LineChart 
+                  key={`chart-${animationKey}`} 
+                  data={salesData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <defs>
+                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={green[800]} stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor={green[800]} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fill: '#666', fontSize: 12 }}
+                    tickLine={{ stroke: '#e0e0e0' }}
+                    axisLine={{ stroke: '#e0e0e0' }}
+                  />
+                  <YAxis 
+                    tick={{ fill: '#666', fontSize: 12 }}
+                    tickLine={{ stroke: '#e0e0e0' }}
+                    axisLine={{ stroke: '#e0e0e0' }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#fff', 
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '8px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      padding: '10px'
+                    }}
+                    labelStyle={{ fontWeight: 600, marginBottom: '5px' }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '20px' }}
+                    iconType="line"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="sales" 
+                    name="Sales"
+                    stroke={green[800]} 
+                    strokeWidth={3}
+                    fill="url(#colorSales)"
+                    dot={{ 
+                      fill: green[800], 
+                      r: 6, 
+                      strokeWidth: 2, 
+                      stroke: '#fff',
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                    }}
+                    activeDot={{ 
+                      r: 8, 
+                      strokeWidth: 3,
+                      stroke: '#fff',
+                      fill: green[800]
+                    }}
+                    isAnimationActive={true}
+                    animationDuration={2000}
+                    animationBegin={200}
+                    animationEasing="ease-in-out"
+                  />
                 </LineChart>
               </ChartCard>
             </Grid>
@@ -450,7 +676,6 @@ const StatisticsPage = () => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     outerRadius={80}
                     dataKey="value"
                   >
@@ -467,8 +692,8 @@ const StatisticsPage = () => {
                 <BarChart data={warehouseData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
+                  <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip formatter={(value) => [`${value}%`, 'Utilization']} />
                   <Legend />
                   <Bar dataKey="value" fill={green[800]} name="Utilization %" />
                 </BarChart>
@@ -491,17 +716,13 @@ const StatisticsPage = () => {
                       <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>Quantity Sold</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Trend</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {bestSellers.map((p, i) => (
+                      {topSellers.map((p, i) => (
                         <TableRow key={i}>
                           <TableCell>{p.name}</TableCell>
                           <TableCell align="right">{p.sales.toLocaleString()}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={p.trend} color="success" size="small" sx={{ fontWeight: 600 }} />
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -523,22 +744,17 @@ const StatisticsPage = () => {
                       <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>Stock</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Min</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 600 }}>Status</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {lowestStock.map((p, i) => (
-                        <TableRow key={i}>
-                          <TableCell>{p.name}</TableCell>
-                          <TableCell align="right">{p.stock}</TableCell>
-                          <TableCell align="right">{p.min}</TableCell>
-                          <TableCell align="center">
-                            <Chip label={p.status.toUpperCase()} color={getStatusColor(p.status)} 
-                                  size="small" sx={{ fontWeight: 600 }} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {lowStockProducts.map((p) => {
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell>{p.name}</TableCell>
+                            <TableCell align="right">{(p.currentStock || 0).toLocaleString()}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -558,21 +774,14 @@ const StatisticsPage = () => {
                       <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>Current Stock</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Capacity</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Utilization</TableCell>
                         <TableCell align="center" sx={{ fontWeight: 600 }}>Warehouse</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {highestStock.map((p, i) => (
+                      {highStockProducts.map((p, i) => (
                         <TableRow key={i}>
                           <TableCell>{p.name}</TableCell>
-                          <TableCell align="right">{p.stock.toLocaleString()}</TableCell>
-                          <TableCell align="right">{p.capacity.toLocaleString()}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={`${p.percent}%`} color={p.percent >= 85 ? 'warning' : 'success'} 
-                                  size="small" sx={{ fontWeight: 600 }} />
-                          </TableCell>
+                          <TableCell align="right">{(p.stock || 0).toLocaleString()}</TableCell>
                           <TableCell align="center">{p.warehouse}</TableCell>
                         </TableRow>
                       ))}
@@ -582,6 +791,8 @@ const StatisticsPage = () => {
               </Paper>
             </Grid>
           </Grid>
+            </>
+          )}
         </Box>
       </Box>
       
