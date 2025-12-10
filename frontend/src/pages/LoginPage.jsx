@@ -94,7 +94,7 @@ const LoginPage = () => {
                   textShadow: '0 1px 5px rgba(0,0,0,0.2)',
                 }}
               >
-                Raktárkezelési rendszer
+                Warehouse Management System
               </Typography>
             </Box>
 
@@ -117,10 +117,10 @@ const LoginPage = () => {
             <form onSubmit={handleSubmit(onSubmit)}>
               <TextField
                 fullWidth
-                label="Felhasználónév / Email"
-                placeholder="email@ceg.hu"
+                label="Username / Email"
+                placeholder="email@company.com"
                 margin="normal"
-                {...register('username', { required: 'A felhasználónév kötelező' })}
+                {...register('username', { required: 'Username is required' })}
                 error={!!errors.username}
                 helperText={errors.username?.message}
                 disabled={loading}
@@ -146,11 +146,11 @@ const LoginPage = () => {
 
               <TextField
                 fullWidth
-                label="Jelszó"
+                label="Password"
                 placeholder="********"
                 type={showPassword ? 'text' : 'password'}
                 margin="normal"
-                {...register('password', { required: 'A jelszó kötelező' })}
+                {...register('password', { required: 'Password is required' })}
                 error={!!errors.password}
                 helperText={errors.password?.message}
                 disabled={loading}
@@ -194,7 +194,7 @@ const LoginPage = () => {
                 disabled={loading}
                 sx={{ mt: 3, py: 1.5, fontWeight: 'bold' }}
               >
-                {loading ? 'Bejelentkezés...' : 'Bejelentkezés'}
+                {loading ? 'Logging in...' : 'Login'}
               </Button>
             </form>
           </CardContent>
