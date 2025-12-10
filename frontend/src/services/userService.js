@@ -1,17 +1,17 @@
 import api from './api';
 
 export const userService = {
-  // Profil lekérése
+  // Get profile
   getProfile: () => api.get('/api/user/profile'),
   
-  // Profil frissítése (email)
-  updateProfile: (email) => api.put('/api/user/profile', { email }),
+  // Update profile (username and email)
+  updateProfile: (username, email) => api.put('/api/user/profile', { username, email }),
   
-  // Jelszó változtatás
+  // Change password
   changePassword: (oldPassword, newPassword) => 
     api.put('/api/user/password', { oldPassword, newPassword }),
   
-  // Profilkép feltöltés
+  // Upload profile picture
   uploadProfilePicture: (file) => {
     const formData = new FormData();
     formData.append('file', file);

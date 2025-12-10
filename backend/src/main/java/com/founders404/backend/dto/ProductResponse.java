@@ -15,12 +15,15 @@ public class ProductResponse {
     private Long companyId;
     private Long categoryId;
     private Long supplierId;
+    private Long shelfId;
     private String name;
     private String sku;
     private String barcode;
     private String qrCode;
     private String description;
     private String unit;
+    private Integer currentStock;
+    private String status;
     private BigDecimal netPurchasePrice;
     private BigDecimal grossPurchasePrice;
     private BigDecimal netSellingPrice;

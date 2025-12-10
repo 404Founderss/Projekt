@@ -279,7 +279,7 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
 };
 
 const ProfilePage = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
@@ -295,7 +295,6 @@ const ProfilePage = () => {
   const [formData, setFormData] = useState({
     username: user?.username || '',
     email: user?.email || '',
-    phone: user?.phone || '',
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -362,12 +361,25 @@ const ProfilePage = () => {
     setLoading(true);
 
     try {
-      // Update email if changed
-      if (formData.email) {
-        await userService.updateProfile(formData.email);
+      let updatedUsername = formData.username;
+      let updatedEmail = formData.email;
+
+      // IMPORTANT: Update username and email FIRST before changing password
+      // This is necessary because the backend password change uses getCurrentUser()
+      // which looks up by the username from the JWT token
+      if (formData.username && formData.email) {
+        const response = await userService.updateProfile(formData.username, formData.email);
+        updatedUsername = response.data.username;
+        updatedEmail = response.data.email;
+        
+        // Update user in auth context immediately after profile update
+        updateUser({
+          username: updatedUsername,
+          role: user.role
+        });
       }
 
-      // Change password if provided
+      // Change password if provided (do this AFTER username change)
       if (formData.newPassword) {
         if (formData.newPassword !== formData.confirmPassword) {
           setErrorMessage('New passwords do not match!');
@@ -682,27 +694,6 @@ const ProfilePage = () => {
               <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
                 {user ? user.username : 'Current User'}
               </Typography>
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<PhotoCameraIcon />}
-                sx={{
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  '&:hover': {
-                    borderColor: 'primary.dark',
-                    bgcolor: 'rgba(46, 125, 50, 0.04)'
-                  }
-                }}
-              >
-                Change Profile Picture
-                <input
-                  type="file"
-                  hidden
-                  accept="image/*"
-                  onChange={handleProfilePictureChange}
-                />
-              </Button>
             </Box>
           </Box>
         </Paper>
@@ -737,15 +728,6 @@ const ProfilePage = () => {
                     name="email"
                     type="email"
                     value={formData.email}
-                    onChange={handleInputChange}
-                    variant="outlined"
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Phone number"
-                    name="phone"
-                    value={formData.phone}
                     onChange={handleInputChange}
                     variant="outlined"
                   />

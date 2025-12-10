@@ -12,6 +12,8 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class UpdateProductRequest {
 
+    private Long shelfId;
+
     private Long categoryId;
 
     private Long supplierId;
@@ -32,6 +34,9 @@ public class UpdateProductRequest {
 
     @Size(max = 50, message = "Unit must not exceed 50 characters")
     private String unit;
+
+    @Min(value = 0, message = "Current stock must be non-negative")
+    private Integer currentStock;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "Net purchase price must be positive")
     @Digits(integer = 10, fraction = 2, message = "Invalid price format")

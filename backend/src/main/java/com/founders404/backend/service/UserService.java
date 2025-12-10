@@ -54,8 +54,8 @@ public class UserService {
             throw new RuntimeException("Invalid credentials");
         }
 
-        // Token generálás
-        return jwtUtil.generateToken(username, user.getRole().name());
+        // Token generálás user ID-vel
+        return jwtUtil.generateToken(username, user.getRole().name(), user.getId());
     }
 
     /**
@@ -77,14 +77,20 @@ public class UserService {
     /**
      * Profil frissítése.
      */
-    public User updateProfile(String username, String email) {
+    public User updateProfile(String username, String newUsername, String email) {
         User user = findByUsername(username);
 
-        // Email egyediség ellenőrzés
+        // Felhasználónév egyediség ellenőrzés (ha megváltoztatták)
+        if (!user.getUsername().equals(newUsername) && userRepository.existsByUsername(newUsername)) {
+            throw new RuntimeException("Username already exists");
+        }
+
+        // Email egyediség ellenőrzés (ha megváltoztatták)
         if (!user.getEmail().equals(email) && userRepository.existsByEmail(email)) {
             throw new RuntimeException("Email already exists");
         }
 
+        user.setUsername(newUsername);
         user.setEmail(email);
         return userRepository.save(user);
     }
@@ -94,6 +100,22 @@ public class UserService {
      */
     public void changePassword(String username, String oldPassword, String newPassword) {
         User user = findByUsername(username);
+
+        // Régi jelszó ellenőrzése
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new RuntimeException("Old password is incorrect");
+        }
+
+        // Új jelszó hash-elése és mentése
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    /**
+     * Jelszó változtatás felhasználó ID alapján.
+     */
+    public void changePasswordById(Long userId, String oldPassword, String newPassword) {
+        User user = findById(userId);
 
         // Régi jelszó ellenőrzése
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {

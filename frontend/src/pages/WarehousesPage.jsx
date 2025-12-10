@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { warehouseService } from '../services/warehouseService';
@@ -301,93 +301,6 @@ const generateProducts = (shelfId, count) => {
 };
 
 // Sample warehouse data with shelf information
-const warehousesData = [
-  {
-    id: 1,
-    name: 'Central Warehouse',
-    capacity: 10000,
-    currentStock: 7500,
-    lastUpdate: '2025-11-08 14:30',
-    shelves: [
-      { id: 'A1', occupied: true, items: 250, products: generateProducts('A1', 25) },
-      { id: 'A2', occupied: true, items: 180, products: generateProducts('A2', 18) },
-      { id: 'A3', occupied: false, items: 0, products: [] },
-      { id: 'B1', occupied: true, items: 320, products: generateProducts('B1', 32) },
-      { id: 'B2', occupied: true, items: 290, products: generateProducts('B2', 29) },
-      { id: 'B3', occupied: true, items: 150, products: generateProducts('B3', 15) },
-      { id: 'C1', occupied: true, items: 410, products: generateProducts('C1', 41) },
-      { id: 'C2', occupied: false, items: 0, products: [] },
-      { id: 'C3', occupied: true, items: 200, products: generateProducts('C3', 20) },
-      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
-      { id: 'D2', occupied: true, items: 270, products: generateProducts('D2', 27) },
-      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
-    ]
-  },
-  {
-    id: 2,
-    name: 'North Distribution Center',
-    capacity: 15000,
-    currentStock: 12000,
-    lastUpdate: '2025-11-08 13:15',
-    shelves: [
-      { id: 'A1', occupied: true, items: 450, products: generateProducts('A1', 45) },
-      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
-      { id: 'A3', occupied: true, items: 420, products: generateProducts('A3', 42) },
-      { id: 'B1', occupied: true, items: 520, products: generateProducts('B1', 52) },
-      { id: 'B2', occupied: true, items: 490, products: generateProducts('B2', 49) },
-      { id: 'B3', occupied: true, items: 350, products: generateProducts('B3', 35) },
-      { id: 'C1', occupied: true, items: 610, products: generateProducts('C1', 61) },
-      { id: 'C2', occupied: true, items: 580, products: generateProducts('C2', 58) },
-      { id: 'C3', occupied: true, items: 400, products: generateProducts('C3', 40) },
-      { id: 'D1', occupied: true, items: 480, products: generateProducts('D1', 48) },
-      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
-      { id: 'D3', occupied: true, items: 440, products: generateProducts('D3', 44) }
-    ]
-  },
-  {
-    id: 3,
-    name: 'South Storage Facility',
-    capacity: 8000,
-    currentStock: 3200,
-    lastUpdate: '2025-11-08 12:45',
-    shelves: [
-      { id: 'A1', occupied: true, items: 180, products: generateProducts('A1', 18) },
-      { id: 'A2', occupied: false, items: 0, products: [] },
-      { id: 'A3', occupied: false, items: 0, products: [] },
-      { id: 'B1', occupied: true, items: 220, products: generateProducts('B1', 22) },
-      { id: 'B2', occupied: true, items: 190, products: generateProducts('B2', 19) },
-      { id: 'B3', occupied: false, items: 0, products: [] },
-      { id: 'C1', occupied: true, items: 310, products: generateProducts('C1', 31) },
-      { id: 'C2', occupied: false, items: 0, products: [] },
-      { id: 'C3', occupied: false, items: 0, products: [] },
-      { id: 'D1', occupied: true, items: 280, products: generateProducts('D1', 28) },
-      { id: 'D2', occupied: true, items: 170, products: generateProducts('D2', 17) },
-      { id: 'D3', occupied: false, items: 0, products: [] }
-    ]
-  },
-  {
-    id: 4,
-    name: 'East Regional Hub',
-    capacity: 12000,
-    currentStock: 9600,
-    lastUpdate: '2025-11-08 15:00',
-    shelves: [
-      { id: 'A1', occupied: true, items: 350, products: generateProducts('A1', 35) },
-      { id: 'A2', occupied: true, items: 380, products: generateProducts('A2', 38) },
-      { id: 'A3', occupied: true, items: 320, products: generateProducts('A3', 32) },
-      { id: 'B1', occupied: true, items: 420, products: generateProducts('B1', 42) },
-      { id: 'B2', occupied: true, items: 390, products: generateProducts('B2', 39) },
-      { id: 'B3', occupied: true, items: 450, products: generateProducts('B3', 45) },
-      { id: 'C1', occupied: true, items: 510, products: generateProducts('C1', 51) },
-      { id: 'C2', occupied: true, items: 480, products: generateProducts('C2', 48) },
-      { id: 'C3', occupied: true, items: 300, products: generateProducts('C3', 30) },
-      { id: 'D1', occupied: true, items: 380, products: generateProducts('D1', 38) },
-      { id: 'D2', occupied: true, items: 470, products: generateProducts('D2', 47) },
-      { id: 'D3', occupied: true, items: 340, products: generateProducts('D3', 34) }
-    ]
-  }
-];
-
 // Load user-saved warehouses from localStorage (created in NewWarehousePage)
 const loadSavedWarehouses = () => {
   try {
@@ -411,10 +324,15 @@ const loadSavedWarehouses = () => {
             };
           });
 
+      // Calculate capacity from shelves (exclude walls, use maxCapacity or default 1000)
+      const calculatedCapacity = shelves
+        .filter(sh => sh.type === 'shelf')
+        .reduce((sum, sh) => sum + (sh.maxCapacity || 1000), 0);
+
       return {
         id: s.id || 100000 + idx,
         name: s.name || `Saved Warehouse ${idx + 1}`,
-        capacity: 10000,
+        capacity: calculatedCapacity > 0 ? calculatedCapacity : 10000,
         currentStock: shelves.reduce((sum, sh) => sum + (sh.items || 0), 0),
         lastUpdate: s.createdAt || new Date().toLocaleString(),
         shelves,
@@ -440,32 +358,62 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
   const [products, setProducts] = useState([]);
 
   // Load products when shelf changes or popover opens
-  useEffect(() => {
-    if (open && shelf && shelf.id) {
-      // If products are already loaded in shelf object, use them
-      if (shelf.products && shelf.products.length > 0) {
-        setProducts(shelf.products);
-      } else {
-        // Otherwise, fetch products from API
-        loadShelfProducts();
-      }
-    }
-  }, [open, shelf]);
-
-  const loadShelfProducts = async () => {
+  const loadShelfProducts = useCallback(async () => {
     if (!shelf || !shelf.id) return;
 
     try {
       setLoadingProducts(true);
-      const response = await shelfService.getProducts(shelf.id);
-      setProducts(response.data || []);
+
+      // Resolve the actual shelf DB id; shelf.id may be a shape id if not yet mapped
+      let shelfIdToUse = shelf.id;
+
+      // if not a number, try to resolve via shapeId endpoint
+      if (shelfIdToUse && isNaN(Number(shelfIdToUse))) {
+        try {
+          const res = await shelfService.getByShapeId(shelfIdToUse);
+          shelfIdToUse = res.data?.id || shelfIdToUse;
+        } catch (e) {
+          console.warn('Could not resolve shelf by shapeId', shelfIdToUse, e);
+        }
+      }
+
+      const response = await shelfService.getProducts(shelfIdToUse);
+      const normalized = (response.data || []).map((p) => ({
+        ...p,
+        // keep UI-friendly fields available
+        quantity: p.quantity ?? p.currentStock ?? 0,
+        unit: p.unit || 'pcs',
+        category: p.category || p.description || p.categoryId || 'General',
+        status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
+      }));
+      console.log('Loaded products for shelf', shelfIdToUse, normalized);
+      setProducts(normalized);
     } catch (err) {
       console.error('Error loading shelf products:', err);
       setProducts([]);
     } finally {
       setLoadingProducts(false);
     }
-  };
+  }, [shelf]);
+
+  useEffect(() => {
+    if (open && shelf && shelf.id) {
+      // If products are already loaded in shelf object, use them
+      if (shelf.products && shelf.products.length > 0) {
+        const normalized = shelf.products.map((p) => ({
+          ...p,
+          quantity: p.quantity ?? p.currentStock ?? 0,
+          unit: p.unit || 'pcs',
+          category: p.category || p.description || p.categoryId || 'General',
+          status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
+        }));
+        setProducts(normalized);
+      } else {
+        // Otherwise, fetch products from API
+        loadShelfProducts();
+      }
+    }
+  }, [open, shelf, loadShelfProducts]);
 
   const filteredProducts = useMemo(() => {
     if (!products || products.length === 0) return [];
@@ -699,7 +647,11 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
           </Box>
         ) : filteredProducts.length > 0 ? (
           <Stack spacing={1}>
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product) => {
+              const qty = product.quantity ?? product.currentStock ?? 0;
+              const unit = product.unit || 'pcs';
+              const status = product.status || (qty > 0 ? 'Available' : 'Reserved');
+              return (
               <Paper
                 key={product.id}
                 onClick={() => {
@@ -728,10 +680,10 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
                       {product.sku}
                     </Typography>
                   </Box>
-                  <Chip
-                    label={product.status}
+                    <Chip
+                    label={status}
                     size="small"
-                    color={product.status === 'Available' ? 'success' : 'warning'}
+                    color={status === 'Available' ? 'success' : 'warning'}
                     variant="outlined"
                     sx={{ fontWeight: 600, fontSize: '0.7rem' }}
                   />
@@ -751,12 +703,13 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
                       Quantity
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500, color: 'primary.main' }}>
-                      {product.quantity} {product.unit}
+                      {qty} {unit}
                     </Typography>
                   </Box>
                 </Box>
               </Paper>
-            ))}
+            );
+            })}
           </Stack>
         ) : (
           <Box sx={{ textAlign: 'center', py: 3 }}>
@@ -774,7 +727,6 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
         <DialogContent>
           <Box sx={{ display: 'grid', gap: 2, mt: 1 }}>
             <TextField label="Product Name" size="small" id="ap-name" />
-            <TextField label="SKU" size="small" id="ap-sku" />
             <TextField label="Category" size="small" id="ap-cat" />
             <TextField label="Quantity" size="small" id="ap-qty" type="number" defaultValue={1} />
           </Box>
@@ -785,14 +737,13 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
             variant="contained"
             onClick={() => {
               const name = document.getElementById('ap-name')?.value || `New Product`;
-              const sku = document.getElementById('ap-sku')?.value || `SKU-${shelf.id}-${Date.now()}`;
               const category = document.getElementById('ap-cat')?.value || 'General';
               const qty = Math.max(0, Number(document.getElementById('ap-qty')?.value) || 1);
               const product = {
-                id: sku,
+                id: `temp-${Date.now()}`,
                 name,
                 category,
-                sku,
+                sku: null,
                 quantity: qty,
                 unit: 'pcs',
                 status: 'Available'
@@ -809,19 +760,19 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
       <Dialog open={openRemoveDialog} onClose={() => setOpenRemoveDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Remove Products from Shelf {shelf.id}</DialogTitle>
         <DialogContent>
-          {shelf.products.length === 0 ? (
+          {products.length === 0 ? (
             <Box sx={{ py: 3, textAlign: 'center' }}>
               <Typography color="text.secondary">No products to remove</Typography>
             </Box>
           ) : (
             <List>
-              {shelf.products.map((p) => (
+              {products.map((p) => (
                 <ListItem key={p.id} disablePadding>
                   <ListItemButton onClick={() => toggleRemoveSelection(p.id)}>
                     <ListItemIcon>
                       <Checkbox edge="start" checked={removeSelection.has(p.id)} tabIndex={-1} disableRipple />
                     </ListItemIcon>
-                    <ListItemText primary={p.name} secondary={`${p.sku} — ${p.quantity} ${p.unit || ''}`} />
+                    <ListItemText primary={p.name} secondary={`${p.sku || 'SKU auto'} — ${(p.quantity ?? p.currentStock ?? 0)} ${p.unit || 'pcs'}`} />
                   </ListItemButton>
                 </ListItem>
               ))}
@@ -846,16 +797,16 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
 };
 
   // Product Detail Dialog - shows QR, product name, and add/remove controls
-  const ProductDetailDialog = ({ open, onClose, product }) => {
+  const ProductDetailDialog = ({ open, onClose, product, onQuantityAdjusted }) => {
     const [qtyInput, setQtyInput] = useState(1);
     const [qrUrl, setQrUrl] = useState(null);
     const [loadingQr, setLoadingQr] = useState(false);
     const [adjusting, setAdjusting] = useState(false);
     const [message, setMessage] = useState(null);
-    const [productQty, setProductQty] = useState(product ? product.quantity : 0);
+    const [productQty, setProductQty] = useState(product ? (product.quantity ?? product.currentStock ?? 0) : 0);
 
     useEffect(() => {
-      setProductQty(product ? product.quantity : 0);
+      setProductQty(product ? (product.quantity ?? product.currentStock ?? 0) : 0);
       setQtyInput(1);
       setMessage(null);
       setQrUrl(null);
@@ -909,8 +860,14 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
         } else {
           newQty = Math.max(0, productQty + delta);
         }
+        const newStatus = (response.data && response.data.status)
+          ? response.data.status
+          : (newQty > 0 ? 'Available' : 'Reserved');
 
         setProductQty(newQty);
+        if (onQuantityAdjusted && product) {
+          onQuantityAdjusted(product.id, newQty, product.shelfId, newStatus);
+        }
         setMessage({ type: 'success', text: `Quantity updated (${delta > 0 ? '+' : ''}${delta})` });
       } catch (err) {
         console.error('Quantity adjust error:', err);
@@ -1068,11 +1025,35 @@ const KonvaLayoutRenderer = ({ shapes = [], onRectClick }) => {
 };
 
 // Warehouse Visual Modal Component
-const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShelfRemoveItem, onDeleteWarehouse }) => {
+const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShelfRemoveItem, onDeleteWarehouse, onShelfQuantityAdjusted }) => {
   const [selectedShelfAnchor, setSelectedShelfAnchor] = useState(null);
   const [selectedShelf, setSelectedShelf] = useState(null);
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [selectedProductForModal, setSelectedProductForModal] = useState(null);
+
+  const handleQuantityAdjusted = (productId, newQty, shelfId, newStatus) => {
+    // Update selected shelf products so popover shows fresh quantity without reload
+    setSelectedShelf((prev) => {
+      if (!prev) return prev;
+      const updatedProducts = (prev.products || []).map((p) =>
+        String(p.id) === String(productId)
+          ? { ...p, quantity: newQty, currentStock: newQty, status: newStatus }
+          : p
+      );
+      return { ...prev, products: updatedProducts };
+    });
+
+    if (onShelfQuantityAdjusted) {
+      onShelfQuantityAdjusted(productId, newQty, shelfId, newStatus);
+    }
+
+    // Keep modal product in sync
+    setSelectedProductForModal((prev) =>
+      prev && String(prev.id) === String(productId)
+        ? { ...prev, quantity: newQty, currentStock: newQty, status: newStatus }
+        : prev
+    );
+  };
 
   const handleShelfClick = (event, shelf) => {
     setSelectedShelfAnchor(event.currentTarget);
@@ -1089,60 +1070,42 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
     setProductModalOpen(true);
   };
 
-  const handleShelfAddItem = async (warehouseId, shelfId, product) => {
-    try {
-      // Call backend API to add product to shelf
-      // CreateProductRequest requires: companyId (required), name (required)
-      // Note: shelfId from visual editor is a string (shape ID), not a DB Long ID
-      // We'll set shelfId to null for now, until shelves are created as entities
-      await productService.create({
-        companyId: 1, // TODO: Get from current user's company
-        shelfId: null, // Set to null since we don't have real shelf entities yet
-        name: product.name,
-        sku: product.sku,
-        unit: product.unit || 'pcs',
-        description: `Product added to visual shelf ${shelfId} in warehouse ${warehouseId}`,
-        minStockLevel: 0,
-        optimalStockLevel: Math.floor(product.quantity * 1.5),
-        maxStockLevel: Math.floor(product.quantity * 2)
-      });
-
-      // Refresh data
-      if (onRefresh) onRefresh();
-      alert('Product added successfully!');
-    } catch (error) {
-      console.error('Error adding product to shelf:', error);
-      alert('Failed to add product: ' + (error.response?.data?.message || error.message));
-    }
-  };
-
-  const handleShelfRemoveItem = async (warehouseId, shelfId, productIds) => {
-    try {
-      // Call backend API to remove products from shelf
-      await Promise.all(productIds.map(id => productService.delete(id)));
-
-      // Refresh data
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      console.error('Error removing products from shelf:', error);
-      alert('Failed to remove products: ' + (error.response?.data?.message || error.message));
-    }
-  };
+  
 
   if (!warehouse) return null;
 
   // Parse floorPlanData if shelves array is empty
-  let displayShelves = warehouse.shelves || [];
+  let allShelvesAndWalls = warehouse.shelves || [];
+  // Filter out walls - only keep actual shelves
+  let displayShelves = allShelvesAndWalls.filter(item => item.type === 'shelf');
   let shapes = [];
 
   if (warehouse.floorPlanData) {
     try {
-      shapes = JSON.parse(warehouse.floorPlanData);
+      let parsedData = JSON.parse(warehouse.floorPlanData);
+      // Handle both formats: array directly or object with shapes property
+      shapes = Array.isArray(parsedData) ? parsedData : (parsedData.shapes || []);
+      
+      // Cross-reference displayShelves with shapes to exclude walls
+      // If a shelf's shapeId matches a wall shape, exclude it
+      displayShelves = displayShelves.filter(shelf => {
+        const matchingShape = shapes.find(shape => 
+          String(shape.id) === String(shelf.shapeId) || String(shape.id) === String(shelf.id)
+        );
+        // If we found the matching shape, check if it's actually a wall
+        if (matchingShape) {
+          return matchingShape.type === 'shelf';
+        }
+        // If no matching shape found, assume it's a shelf based on height (walls are typically 10-20px high, shelves 40+)
+        return !shelf.height || shelf.height > 20;
+      });
+      
       if (displayShelves.length === 0) {
         displayShelves = shapes
           .filter(shape => shape.type === 'shelf')
           .map((shape, index) => ({
             id: shape.id || `Shelf ${index + 1}`,
+            type: 'shelf',
             occupied: false,
             items: 0,
             products: []
@@ -1153,7 +1116,9 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
     }
   }
 
-  const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
+  const capacity = warehouse.capacity || 0;
+  const currentStock = warehouse.currentStock || 0;
+  const utilization = capacity > 0 ? ((currentStock / capacity) * 100).toFixed(1) : '0.0';
   const occupiedShelves = displayShelves.filter(shelf => shelf.occupied).length;
 
   return (
@@ -1192,7 +1157,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
         <DialogContent>
           {/* Stats Summary */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={6} sm={3}>
+            <Grid size={{ xs: 6, sm: 3 }}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'primary.main', color: 'white' }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
                   {displayShelves.length}
@@ -1200,7 +1165,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
                 <Typography variant="caption">Total Shelves</Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} sm={3}>
+            <Grid size={{ xs: 6, sm: 3 }}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: green[600], color: 'white' }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
                   {occupiedShelves}
@@ -1208,7 +1173,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
                 <Typography variant="caption">Occupied</Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} sm={3}>
+            <Grid size={{ xs: 6, sm: 3 }}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.400', color: 'white' }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
                   {displayShelves.length - occupiedShelves}
@@ -1216,7 +1181,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
                 <Typography variant="caption">Empty</Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} sm={3}>
+            <Grid size={{ xs: 6, sm: 3 }}>
               <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.main', color: 'white' }}>
                 <Typography variant="h4" sx={{ fontWeight: 700 }}>
                   {utilization}%
@@ -1245,19 +1210,21 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
             </Typography>
 
             {/* If warehouse has a saved konva layout, render it exactly; otherwise fall back to the grid */}
-            {warehouse.layout && Array.isArray(warehouse.layout.shapes) && warehouse.layout.shapes.length > 0 ? (
+            {shapes.length > 0 ? (
               <Box ref={el => { /* placeholder */ }}>
                 <Box
                   ref={el => { /* keep placeholder for layout */ }}
                   sx={{ width: '100%', height: { xs: '40vh', sm: '50vh', md: '55vh' }, position: 'relative' }}
                 >
                       <KonvaLayoutRenderer
-                        shapes={warehouse.layout.shapes}
+                        shapes={shapes}
                         onRectClick={(shape) => {
                           // only handle clicks for actual shelves (renderer will already filter non-shelves,
                           // but double-check here). Non-shelf shapes (walls) won't open popovers.
                           if (!shape || shape.type !== 'shelf') return;
-                          const shelf = (warehouse.shelves || []).find(s => s.id === shape.id) || {
+                          const shelf = (warehouse.shelves || []).find(s =>
+                            String(s.shapeId) === String(shape.id) || String(s.id) === String(shape.id)
+                          ) || {
                             id: shape.id,
                             occupied: true,
                             items: 0,
@@ -1293,13 +1260,13 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
                 {/* Shelves Grid (original code preserved) */}
                 <Grid container spacing={2}>
                   {/* Left Aisle */}
-                  <Grid item xs={5.5}>
+                  <Grid size={{ xs: 5.5 }}>
                     <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
                       Aisle A-B
                     </Typography>
                     <Grid container spacing={1}>
                               {warehouse.shelves.slice(0, 6).map((shelf) => (
-                                  <Grid item xs={4} key={shelf.id}>
+                                  <Grid size={{ xs: 4 }} key={shelf.id}>
                                     <Paper
                                       onClick={(e) => handleShelfClick(e, shelf)}
                                       elevation={shelf.occupied ? 3 : 0}
@@ -1351,7 +1318,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
                   </Grid>
 
                   {/* Center Aisle */}
-                  <Grid item xs={1} sx={{ 
+                  <Grid size={{ xs: 1 }} sx={{ 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
@@ -1372,13 +1339,13 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
                   </Grid>
 
                   {/* Right Aisle */}
-                  <Grid item xs={5.5}>
+                  <Grid size={{ xs: 5.5 }}>
                     <Typography variant="caption" sx={{ fontWeight: 600, mb: 1, display: 'block' }}>
                       Aisle C-D
                     </Typography>
                     <Grid container spacing={1}>
                       {warehouse.shelves.slice(6, 12).map((shelf) => (
-                        <Grid item xs={4} key={shelf.id}>
+                        <Grid size={{ xs: 4 }} key={shelf.id}>
                           <Paper
                             onClick={(e) => handleShelfClick(e, shelf)}
                             elevation={shelf.occupied ? 3 : 0}
@@ -1515,6 +1482,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
         open={productModalOpen}
         onClose={() => setProductModalOpen(false)}
         product={selectedProductForModal}
+        onQuantityAdjusted={handleQuantityAdjusted}
       />
     </>
   );
@@ -1526,11 +1494,6 @@ const WarehousesPage = () => {
   const muiTheme = useMuiTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
   const [savedWarehousesState, setSavedWarehousesState] = useState(() => loadSavedWarehouses());
-  // Keep an editable copy of the built-in/sample warehouses so shelves can be updated in-memory
-  const [sampleWarehousesState, setSampleWarehousesState] = useState(() => warehousesData.map(w => ({
-    ...w,
-    shelves: (w.shelves || []).map(s => ({ ...s, products: Array.isArray(s.products) ? [...s.products] : [] }))
-  })));
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -1573,14 +1536,42 @@ const WarehousesPage = () => {
       const response = await warehouseService.getAll();
 
       // Transform API data to match the expected format
-      const transformedData = response.data.map(warehouse => ({
-        id: warehouse.id,
-        name: warehouse.name,
-        capacity: warehouse.capacity || 10000,
-        currentStock: warehouse.currentStock || 0,
-        lastUpdate: warehouse.updatedAt || new Date().toISOString(),
-        shelves: warehouse.shelves || [],
-        floorPlanData: warehouse.floorPlanData || null
+      const transformedData = await Promise.all(response.data.map(async (warehouse) => {
+        // Calculate capacity from sum of shelf maxCapacity (exclude walls)
+        const shelves = warehouse.shelves || [];
+        const calculatedCapacity = shelves
+          .filter(shelf => shelf.type === 'shelf')
+          .reduce((sum, shelf) => sum + (shelf.maxCapacity || 1000), 0);
+        
+        // Calculate current stock from products in all shelves
+        let calculatedStock = 0;
+        try {
+          const shelvesOnly = shelves.filter(shelf => shelf.type === 'shelf');
+          const stockPromises = shelvesOnly.map(async (shelf) => {
+            try {
+              const productsResponse = await shelfService.getProducts(shelf.id);
+              return (productsResponse.data || []).reduce((sum, p) => 
+                sum + (p.currentStock ?? p.quantity ?? 0), 0
+              );
+            } catch {
+              return 0;
+            }
+          });
+          const stockValues = await Promise.all(stockPromises);
+          calculatedStock = stockValues.reduce((sum, val) => sum + val, 0);
+        } catch (err) {
+          console.error(`Error calculating stock for warehouse ${warehouse.id}:`, err);
+        }
+        
+        return {
+          id: warehouse.id,
+          name: warehouse.name,
+          capacity: calculatedCapacity > 0 ? calculatedCapacity : (warehouse.capacity || 0),
+          currentStock: calculatedStock,
+          lastUpdate: warehouse.updatedAt || new Date().toISOString(),
+          shelves: warehouse.shelves || [],
+          floorPlanData: warehouse.floorPlanData || null
+        };
       }));
 
       setWarehousesData(transformedData);
@@ -1626,6 +1617,52 @@ const WarehousesPage = () => {
         shelves: response.data.shelves || [],
         floorPlanData: response.data.floorPlanData || null
       };
+
+      // Load products for each shelf
+      if (detailedWarehouse.shelves && detailedWarehouse.shelves.length > 0) {
+        const shelvesWithProducts = await Promise.all(
+          detailedWarehouse.shelves.map(async (shelf) => {
+            try {
+              const productsResponse = await shelfService.getProducts(shelf.id);
+              const products = (productsResponse.data || []).map((p) => ({
+                ...p,
+                quantity: p.quantity ?? p.currentStock ?? 0,
+                unit: p.unit || 'pcs',
+                category: p.category || p.description || p.categoryId || 'General',
+                status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
+              }));
+              return {
+                ...shelf,
+                products,
+                items: products.reduce((sum, p) => sum + (p.currentStock ?? p.quantity ?? 0), 0),
+                occupied: products.length > 0
+              };
+            } catch (err) {
+              console.error(`Error loading products for shelf ${shelf.id}:`, err);
+              return {
+                ...shelf,
+                products: [],
+                items: 0,
+                occupied: false
+              };
+            }
+          })
+        );
+        detailedWarehouse.shelves = shelvesWithProducts;
+        
+        // Calculate actual current stock from all products in all shelves
+        const totalStock = shelvesWithProducts.reduce((sum, shelf) => 
+          sum + (shelf.items || 0), 0
+        );
+        detailedWarehouse.currentStock = totalStock;
+        
+        // Calculate total capacity from all shelves (exclude walls)
+        const totalCapacity = shelvesWithProducts
+          .filter(shelf => shelf.type === 'shelf')
+          .reduce((sum, shelf) => sum + (shelf.maxCapacity || 1000), 0);
+        detailedWarehouse.capacity = totalCapacity > 0 ? totalCapacity : detailedWarehouse.capacity;
+      }
+
       setSelectedWarehouse(detailedWarehouse);
       setModalOpen(true);
     } catch (err) {
@@ -1637,6 +1674,29 @@ const WarehousesPage = () => {
   };
 
   const handleCloseModal = () => {
+    // Update the warehouse in the list with the latest data from the modal
+    if (selectedWarehouse) {
+      const updatedWarehouse = {
+        id: selectedWarehouse.id,
+        name: selectedWarehouse.name,
+        capacity: selectedWarehouse.capacity,
+        currentStock: selectedWarehouse.currentStock,
+        lastUpdate: selectedWarehouse.lastUpdate || selectedWarehouse.updatedAt,
+        shelves: selectedWarehouse.shelves,
+        floorPlanData: selectedWarehouse.floorPlanData
+      };
+
+      // Update in warehousesData (from API)
+      setWarehousesData(prev => 
+        prev.map(wh => wh.id === selectedWarehouse.id ? updatedWarehouse : wh)
+      );
+
+      // Update in savedWarehousesState (from localStorage) if it exists there
+      setSavedWarehousesState(prev => 
+        prev.map(wh => wh.id === selectedWarehouse.id ? { ...wh, ...updatedWarehouse } : wh)
+      );
+    }
+
     setModalOpen(false);
     setSelectedWarehouse(null);
   };
@@ -1673,96 +1733,170 @@ const WarehousesPage = () => {
       return;
     }
 
-    // otherwise update sample warehouses copy
-    setSampleWarehousesState(prev => {
-      const idx = prev.findIndex(w => String(w.id) === String(warehouseId));
-      if (idx === -1) return prev;
-      const next = prev.map(p => ({ ...p }));
-      next[idx] = updater({ ...next[idx] });
-      return next;
-    });
+    // Sample warehouses are no longer supported - all updates go through backend
   };
 
-  const handleDeleteWarehouse = (warehouse) => {
+  const handleDeleteWarehouse = async (warehouse) => {
     if (!warehouse) return;
     const id = warehouse.id;
-    // If it's in saved, remove from saved and persist
-    if (savedWarehousesState.some(s => String(s.id) === String(id))) {
-      const next = savedWarehousesState.filter(s => String(s.id) !== String(id));
-      setSavedWarehousesState(next);
+    
+    try {
+      // Delete from backend
+      await warehouseService.delete(id);
+      
+      // Update local state - remove from both saved and api warehouses
+      setSavedWarehousesState(prev => prev.filter(s => String(s.id) !== String(id)));
+      setWarehousesData(prev => prev.filter(w => String(w.id) !== String(id)));
+      
+      // Try to remove from localStorage if it was saved there
       try {
         const raw = JSON.parse(localStorage.getItem('savedWarehouses') || '[]');
         const updated = raw.filter(rs => String(rs.id) !== String(id));
         localStorage.setItem('savedWarehouses', JSON.stringify(updated));
       } catch (e) {
-        console.error('Failed to delete saved warehouse', e);
+        console.error('Failed to update localStorage', e);
       }
-      // if the deleted warehouse is currently open, close the modal
+      
+      // Close modal if the deleted warehouse is currently open
       if (selectedWarehouse && String(selectedWarehouse.id) === String(id)) {
         handleCloseModal();
       }
-      return;
+    } catch (error) {
+      console.error('Failed to delete warehouse:', error);
+      alert('Failed to delete warehouse. Please try again.');
     }
+  };
 
-    // Otherwise remove from sample state
-    setSampleWarehousesState(prev => {
-      const next = prev.filter(w => String(w.id) !== String(id));
-      if (selectedWarehouse && String(selectedWarehouse.id) === String(id)) {
-        handleCloseModal();
+  // Add an item to a shelf (persist to backend)
+  const handleShelfAddItem = async (warehouseId, shelfId, product = null) => {
+    try {
+      // Prefer the currently selected warehouse because it has shelves/products loaded
+      const warehouse = selectedWarehouse && String(selectedWarehouse.id) === String(warehouseId)
+        ? selectedWarehouse
+        : allWarehousesData.find(w => String(w.id) === String(warehouseId));
+
+      if (!warehouse) {
+        console.error('Warehouse not found');
+        alert('Warehouse not found');
+        return;
       }
-      return next;
-    });
-  };
 
-  // Add an item to a shelf. Accepts optional `product` object.
-  const handleShelfAddItem = (warehouseId, shelfId, product = null) => {
-    updateWarehouseById(warehouseId, (wh) => {
-      const prod = product || generateProducts(shelfId, 1)[0];
-      const qty = Number(prod.quantity || 1);
-      const shelves = (wh.shelves || []).map(s => {
-        if (String(s.id) === String(shelfId)) {
-          const newProducts = Array.isArray(s.products) ? [...s.products, prod] : [prod];
-          return { ...s, products: newProducts, items: (s.items || 0) + qty, occupied: true };
-        }
-        return s;
-      });
-      const currentStock = (wh.currentStock || 0) + qty;
-      return { ...wh, shelves, currentStock, lastUpdate: new Date().toLocaleString() };
-    });
-  };
+      // shelfId coming from UI is the display id (e.g., "Shelf 1"); DB shelf id is in shelf.id
+      let dbShelf = null;
+      if (warehouse.shelves && warehouse.shelves.length > 0) {
+        dbShelf = warehouse.shelves.find(s => String(s.id) === String(shelfId));
+      }
 
-  // Remove product(s) from a shelf. `productIds` can be an array of ids to remove.
-  const handleShelfRemoveItem = (warehouseId, shelfId, productIds = null) => {
-    updateWarehouseById(warehouseId, (wh) => {
-      let removedQty = 0;
-      const shelves = (wh.shelves || []).map(s => {
-        if (String(s.id) === String(shelfId)) {
-          if (!Array.isArray(s.products) || s.products.length === 0) return s;
-          if (!productIds) {
-            // fallback: remove last product
-            const last = s.products[s.products.length - 1];
-            const qty = Number(last?.quantity || 1);
-            removedQty += qty;
-            const newProducts = s.products.slice(0, -1);
-            return { ...s, products: newProducts, items: Math.max(0, (s.items || 0) - qty), occupied: newProducts.length > 0 };
+      if (!dbShelf) {
+        // Try to create shelf in backend based on floorPlanData
+        try {
+          let shapes = [];
+          if (warehouse.floorPlanData) {
+            const parsed = JSON.parse(warehouse.floorPlanData);
+            shapes = Array.isArray(parsed) ? parsed : (parsed.shapes || []);
           }
-          // remove selected ids
-          const idSet = new Set(productIds.map(id => String(id)));
-          const newProducts = s.products.filter(p => {
-            if (idSet.has(String(p.id))) {
-              removedQty += Number(p.quantity || 1);
-              return false;
-            }
-            return true;
-          });
-          // we already computed removedQty; ensure items reflect total quantity
-          const newItems = Math.max(0, (s.items || 0) - removedQty);
-          return { ...s, products: newProducts, items: newItems, occupied: newProducts.length > 0 };
+          const shape = shapes.find(sh => String(sh.id) === String(shelfId));
+          if (!shape) {
+            console.error('Shelf shape not found for fallback creation', { shelfId, shapes });
+            alert('Shelf not found. Please refresh and try again.');
+            return;
+          }
+          const newShelf = {
+            warehouseId,
+            shapeId: shape.id,
+            type: 'shelf',
+            code: `SHELF-${warehouse.code || warehouseId}-${shelfId}`,
+            name: `Shelf ${shelfId}`,
+            positionX: shape.x || 0,
+            positionY: shape.y || 0,
+            width: shape.width || 120,
+            height: shape.height || 40,
+            rotation: shape.rotation || 0,
+            maxCapacity: 1000,
+            capacityUnit: 'pcs'
+          };
+          const createResp = await shelfService.create(newShelf);
+          dbShelf = createResp.data;
+        } catch (e) {
+          console.error('Failed to create shelf on the fly', e);
+          alert('Shelf not found and could not create it. Please refresh.');
+          return;
         }
-        return s;
+      }
+
+      const actualShelfId = dbShelf.id; // database id
+
+      const prod = product || generateProducts(shelfId, 1)[0];
+      const productData = {
+        companyId: 1,
+        shelfId: actualShelfId,
+        name: prod.name,
+        unit: prod.unit || 'pcs',
+        currentStock: prod.quantity || 1,
+        description: prod.category || 'Added to shelf',
+        currency: 'HUF'
+      };
+
+      if (prod.sku) {
+        productData.sku = prod.sku;
+      }
+
+      await productService.create(productData);
+      // refresh warehouse details to reflect changes
+      await handleWarehouseClick(warehouse);
+      alert('Product added successfully!');
+    } catch (error) {
+      console.error('Failed to add product:', error);
+      alert(`Failed to add product: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  // Remove product(s) from a shelf (persist to backend)
+  const handleShelfRemoveItem = async (warehouseId, shelfId, productIds = null) => {
+    try {
+      if (!productIds || productIds.length === 0) return;
+
+      // Delete products from backend
+      for (const productId of productIds) {
+        try {
+          await productService.delete(productId);
+        } catch (err) {
+          console.error(`Failed to delete product ${productId}:`, err);
+        }
+      }
+
+      // reload warehouse details
+      const warehouse = selectedWarehouse && String(selectedWarehouse.id) === String(warehouseId)
+        ? selectedWarehouse
+        : allWarehousesData.find(w => String(w.id) === String(warehouseId));
+      if (warehouse) {
+        await handleWarehouseClick(warehouse);
+      }
+      alert('Product(s) removed successfully!');
+    } catch (error) {
+      console.error('Failed to remove products:', error);
+      alert(`Failed to remove products: ${error.message}`);
+    }
+  };
+
+  const handleShelfQuantityAdjusted = (productId, newQty, shelfId, newStatus) => {
+    setSelectedWarehouse((prev) => {
+      if (!prev || !prev.shelves) return prev;
+      const updatedShelves = prev.shelves.map((s) => {
+        if (String(s.id) !== String(shelfId) && String(s.shapeId) !== String(shelfId)) return s;
+        const updatedProducts = (s.products || []).map((p) =>
+          String(p.id) === String(productId)
+            ? { ...p, quantity: newQty, currentStock: newQty, status: newStatus }
+            : p
+        );
+        const items = updatedProducts.reduce((sum, p) => sum + (p.currentStock ?? p.quantity ?? 0), 0);
+        return { ...s, products: updatedProducts, items, occupied: updatedProducts.length > 0 };
       });
-      const currentStock = Math.max(0, (wh.currentStock || 0) - removedQty);
-      return { ...wh, shelves, currentStock, lastUpdate: new Date().toLocaleString() };
+      
+      // Recalculate total currentStock for the warehouse
+      const totalStock = updatedShelves.reduce((sum, shelf) => sum + (shelf.items || 0), 0);
+      
+      return { ...prev, shelves: updatedShelves, currentStock: totalStock };
     });
   };
 
@@ -1774,12 +1908,12 @@ const WarehousesPage = () => {
     { text: 'Statistics', icon: <StatisticsIcon />, path: '/statistics' },
   ];
 
-  // Combine saved warehouses with editable sample data and calculate summary statistics
-  const allWarehousesData = [...savedWarehousesState, ...sampleWarehousesState];
+  // Use only warehouses from the backend API
+  const allWarehousesData = [...savedWarehousesState, ...warehousesData];
   const totalWarehouses = allWarehousesData.length;
   const totalCapacity = allWarehousesData.reduce((sum, wh) => sum + (wh.capacity || 0), 0);
   const totalStock = allWarehousesData.reduce((sum, wh) => sum + (wh.currentStock || 0), 0);
-  const averageUtilization = ((totalStock / totalCapacity) * 100).toFixed(1);
+  const averageUtilization = totalCapacity > 0 ? ((totalStock / totalCapacity) * 100).toFixed(1) : '0.0';
 
   const getUtilizationColor = (utilization) => {
     if (utilization >= 80) return 'error';
@@ -2002,7 +2136,7 @@ const WarehousesPage = () => {
 
           {/* Summary Statistics */}
           <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper sx={{
                 p: 2.5,
                 borderRadius: 3,
@@ -2021,7 +2155,7 @@ const WarehousesPage = () => {
               </Paper>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper sx={{
                 p: 2.5,
                 borderRadius: 3,
@@ -2040,7 +2174,7 @@ const WarehousesPage = () => {
               </Paper>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper sx={{
                 p: 2.5,
                 borderRadius: 3,
@@ -2059,7 +2193,7 @@ const WarehousesPage = () => {
               </Paper>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper sx={{
                 p: 2.5,
                 borderRadius: 3,
@@ -2096,10 +2230,12 @@ const WarehousesPage = () => {
           {/* Warehouses List */}
           <Grid container spacing={{ xs: 2, sm: 3 }}>
             {allWarehousesData.map((warehouse) => {
-              const utilization = ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1);
+              const utilization = warehouse.capacity > 0 
+                ? ((warehouse.currentStock / warehouse.capacity) * 100).toFixed(1)
+                : '0.0';
 
               return (
-                <Grid item xs={12} sm={6} lg={4} key={warehouse.id}>
+                <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={warehouse.id}>
                   <Card
                     onClick={() => handleWarehouseClick(warehouse)}
                     sx={{
@@ -2185,10 +2321,8 @@ const WarehousesPage = () => {
                   </Card>
                 </Grid>
               );
-            })
-              )}
-            </Grid>
-          )}
+            })}
+          </Grid>
 
         </Box>
       </Box>
@@ -2201,6 +2335,7 @@ const WarehousesPage = () => {
         onShelfAddItem={handleShelfAddItem}
         onShelfRemoveItem={handleShelfRemoveItem}
         onDeleteWarehouse={handleDeleteWarehouse}
+        onShelfQuantityAdjusted={handleShelfQuantityAdjusted}
       />
 
       {/* Delete confirmation dialog */}
