@@ -6,6 +6,9 @@ export const shelfService = {
   
   // Polc lekérése ID alapján
   getById: (id) => api.get(`/api/shelves/${id}`),
+
+  // Polc lekérése shapeId alapján (Konva floorplan)
+  getByShapeId: (shapeId) => api.get(`/api/shelves/shape/${shapeId}`),
   
   // Új polc létrehozása
   create: (data) => api.post('/api/shelves', data),

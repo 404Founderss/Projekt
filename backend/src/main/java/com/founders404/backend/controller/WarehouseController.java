@@ -1,5 +1,7 @@
 package com.founders404.backend.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.founders404.backend.dto.CreateWarehouseRequest;
 import com.founders404.backend.dto.ShelfResponse;
 import com.founders404.backend.dto.UpdateWarehouseRequest;
@@ -7,6 +9,7 @@ import com.founders404.backend.dto.WarehouseResponse;
 import com.founders404.backend.model.Shelf;
 import com.founders404.backend.model.Warehouse;
 import com.founders404.backend.repository.ShelfRepository;
+import com.founders404.backend.service.ShelfService;
 import com.founders404.backend.service.WarehouseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +31,8 @@ import java.util.stream.Collectors;
 public class WarehouseController {
 
     private final WarehouseService warehouseService;
+    private final ShelfService shelfService;
+    private final ObjectMapper objectMapper;
     private final ShelfRepository shelfRepository;
 
     /**
@@ -133,6 +138,44 @@ public class WarehouseController {
             warehouse.setFloorPlanData(request.getFloorPlanData());
 
             Warehouse savedWarehouse = warehouseService.create(warehouse);
+
+            // Parse floor plan data and create shelf records
+            if (request.getFloorPlanData() != null && !request.getFloorPlanData().isEmpty()) {
+                try {
+                    JsonNode rootNode = objectMapper.readTree(request.getFloorPlanData());
+                    JsonNode shapesArray = rootNode.isArray() ? rootNode : rootNode.get("shapes");
+                    
+                    if (shapesArray != null && shapesArray.isArray()) {
+                        int shelfCounter = 1;
+                        for (JsonNode shapeNode : shapesArray) {
+                            String type = shapeNode.has("type") ? shapeNode.get("type").asText() : "";
+                            
+                            if ("shelf".equals(type)) {
+                                Shelf shelf = new Shelf();
+                                shelf.setWarehouseId(savedWarehouse.getId());
+                                shelf.setShapeId(shapeNode.has("id") ? shapeNode.get("id").asText() : null);
+                                shelf.setType("shelf");
+                                shelf.setCode("SHELF-" + savedWarehouse.getCode() + "-" + shelfCounter);
+                                shelf.setName("Shelf " + shelfCounter);
+                                shelf.setPositionX(shapeNode.has("x") ? shapeNode.get("x").asDouble() : 0.0);
+                                shelf.setPositionY(shapeNode.has("y") ? shapeNode.get("y").asDouble() : 0.0);
+                                shelf.setWidth(shapeNode.has("width") ? shapeNode.get("width").asDouble() : 120.0);
+                                shelf.setHeight(shapeNode.has("height") ? shapeNode.get("height").asDouble() : 40.0);
+                                shelf.setRotation(shapeNode.has("rotation") ? shapeNode.get("rotation").asDouble() : 0.0);
+                                shelf.setMaxCapacity(1000);
+                                shelf.setCapacityUnit("pcs");
+                                shelf.setIsActive(true);
+                                
+                                shelfService.create(shelf);
+                                shelfCounter++;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed to parse floor plan data and create shelves: " + e.getMessage());
+                    // Don't fail the warehouse creation if shelf creation fails
+                }
+            }
 
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(convertToResponse(savedWarehouse));

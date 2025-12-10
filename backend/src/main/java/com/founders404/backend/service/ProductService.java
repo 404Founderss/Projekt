@@ -107,6 +107,13 @@ public class ProductService {
     }
 
     /**
+     * Polc szerint szűrés.
+     */
+    public List<Product> findByShelfId(Long shelfId) {
+        return productRepository.findByShelfId(shelfId);
+    }
+
+    /**
      * Újrarendelésre váró termékek.
      */
     public List<Product> findProductsNeedingReorder(Long companyId) {
@@ -118,6 +125,11 @@ public class ProductService {
      */
     @Transactional
     public Product create(Product product) {
+        // If SKU is missing/blank, generate one automatically
+        if (product.getSku() == null || product.getSku().isBlank()) {
+            product.setSku(generateUniqueSku());
+        }
+
         // SKU duplikáció ellenőrzés
         if (product.getSku() != null && productRepository.existsBySku(product.getSku())) {
             throw new RuntimeException("Product with SKU already exists: " + product.getSku());
@@ -150,6 +162,19 @@ public class ProductService {
         }
 
         return savedProduct;
+    }
+
+    /**
+     * Generates a SKU that is unique in the database. Keeps it short but reasonably unique.
+     */
+    private String generateUniqueSku() {
+        String base = "SKU-" + System.currentTimeMillis();
+        String candidate = base;
+        int counter = 1;
+        while (productRepository.existsBySku(candidate)) {
+            candidate = base + "-" + counter++;
+        }
+        return candidate;
     }
 
 
@@ -313,5 +338,24 @@ public class ProductService {
     public void delete(Long id) {
         Product product = findById(id);
         productRepository.delete(product);
+    }
+
+    /**
+     * Adjust product stock by a delta (can be negative). Never drops below zero.
+     */
+    @Transactional
+    public Product adjustQuantity(Long id, Integer delta) {
+        if (delta == null) {
+            throw new RuntimeException("Delta is required");
+        }
+
+        Product product = findById(id);
+        int current = product.getCurrentStock() != null ? product.getCurrentStock() : 0;
+        int newQty = current + delta;
+        if (newQty < 0) {
+            newQty = 0;
+        }
+        product.setCurrentStock(newQty);
+        return productRepository.save(product);
     }
 }

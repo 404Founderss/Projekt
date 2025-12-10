@@ -1,9 +1,12 @@
 package com.founders404.backend.controller;
 
 import com.founders404.backend.dto.CreateShelfRequest;
+import com.founders404.backend.dto.ProductResponse;
 import com.founders404.backend.dto.ShelfResponse;
 import com.founders404.backend.dto.UpdateShelfRequest;
+import com.founders404.backend.model.Product;
 import com.founders404.backend.model.Shelf;
+import com.founders404.backend.service.ProductService;
 import com.founders404.backend.service.ShelfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ import java.util.stream.Collectors;
 public class ShelfController {
 
     private final ShelfService shelfService;
+    private final ProductService productService;
 
     /**
      * Get all shelves with filtering options.
@@ -240,6 +244,27 @@ public class ShelfController {
     }
 
     /**
+     * Get all products on a specific shelf.
+     * GET /api/shelves/{id}/products
+     */
+    @GetMapping("/{id}/products")
+    public ResponseEntity<Object> getShelfProducts(@PathVariable Long id) {
+        try {
+            Shelf shelf = shelfService.findById(id);
+            List<Product> products = productService.findByShelfId(id);
+            
+            List<ProductResponse> response = products.stream()
+                    .map(this::convertProductToResponse)
+                    .collect(Collectors.toList());
+            
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * Delete all shelves/walls in a warehouse.
      * DELETE /api/shelves/warehouse/{warehouseId}
      */
@@ -252,6 +277,49 @@ public class ShelfController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
+    }
+
+    /**
+     * Convert Product entity to ProductResponse DTO.
+     */
+    private ProductResponse convertProductToResponse(Product product) {
+        ProductResponse response = new ProductResponse();
+        response.setId(product.getId());
+        response.setCompanyId(product.getCompanyId());
+        response.setCategoryId(product.getCategoryId());
+        response.setSupplierId(product.getSupplierId());
+        response.setShelfId(product.getShelfId());
+        response.setName(product.getName());
+        response.setSku(product.getSku());
+        response.setBarcode(product.getBarcode());
+        response.setQrCode(product.getQrCode());
+        response.setDescription(product.getDescription());
+        response.setUnit(product.getUnit());
+        response.setNetPurchasePrice(product.getNetPurchasePrice());
+        response.setGrossPurchasePrice(product.getGrossPurchasePrice());
+        response.setNetSellingPrice(product.getNetSellingPrice());
+        response.setGrossSellingPrice(product.getGrossSellingPrice());
+        response.setVatRate(product.getVatRate());
+        response.setCurrency(product.getCurrency());
+        response.setCurrentStock(product.getCurrentStock());
+        response.setStatus((product.getCurrentStock() != null && product.getCurrentStock() > 0) ? "Available" : "Reserved");
+        response.setMinStockLevel(product.getMinStockLevel());
+        response.setOptimalStockLevel(product.getOptimalStockLevel());
+        response.setMaxStockLevel(product.getMaxStockLevel());
+        response.setReorderPoint(product.getReorderPoint());
+        response.setReorderQuantity(product.getReorderQuantity());
+        response.setWeight(product.getWeight());
+        response.setWidth(product.getWidth());
+        response.setHeight(product.getHeight());
+        response.setDepth(product.getDepth());
+        response.setShelfLifeDays(product.getShelfLifeDays());
+        response.setIsActive(product.getIsActive());
+        response.setIsSerialized(product.getIsSerialized());
+        response.setNotes(product.getNotes());
+        response.setImageUrl(product.getImageUrl());
+        response.setCreatedAt(product.getCreatedAt());
+        response.setUpdatedAt(product.getUpdatedAt());
+        return response;
     }
 
     /**

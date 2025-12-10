@@ -1,6 +1,10 @@
 package com.founders404.backend.service;
 
+import com.founders404.backend.model.Product;
+import com.founders404.backend.model.Shelf;
 import com.founders404.backend.model.Warehouse;
+import com.founders404.backend.repository.ProductRepository;
+import com.founders404.backend.repository.ShelfRepository;
 import com.founders404.backend.repository.WarehouseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +20,8 @@ import java.util.List;
 public class WarehouseService {
 
     private final WarehouseRepository warehouseRepository;
+    private final ShelfRepository shelfRepository;
+    private final ProductRepository productRepository;
 
     /**
      * Összes raktár lekérése.
@@ -172,10 +178,25 @@ public class WarehouseService {
 
     /**
      * Raktár végleges törlése.
+     * Cascade delete: először a termékeket, majd a polcokat, végül a raktárt töröljük.
      */
     @Transactional
     public void delete(Long id) {
         Warehouse warehouse = findById(id);
+        
+        // Először lekérjük az összes polcot a raktárhoz
+        List<Shelf> shelves = shelfRepository.findByWarehouseId(id);
+        
+        // Minden polchoz tartozó termékeket töröljük
+        for (Shelf shelf : shelves) {
+            List<Product> products = productRepository.findByShelfId(shelf.getId());
+            productRepository.deleteAll(products);
+        }
+        
+        // Töröljük az összes polcot
+        shelfRepository.deleteAll(shelves);
+        
+        // Végül töröljük a raktárt
         warehouseRepository.delete(warehouse);
     }
 }

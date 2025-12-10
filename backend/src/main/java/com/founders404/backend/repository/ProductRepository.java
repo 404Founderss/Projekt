@@ -26,6 +26,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByCompanyIdAndIsActiveTrue(Long companyId);
     List<Product> findByCategoryId(Long categoryId);
     List<Product> findBySupplierId(Long supplierId);
+    List<Product> findByShelfId(Long shelfId);
     List<Product> findByCompanyIdAndNameContainingIgnoreCase(Long companyId, String name);
     List<Product> findByCompanyIdAndIsActiveTrueAndNameContainingIgnoreCase(Long companyId, String name);
     List<Product> findByCompanyIdAndReorderPointIsNotNull(Long companyId);

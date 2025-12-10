@@ -191,6 +191,9 @@ public class ProductController {
             product.setHeight(request.getHeight());
             product.setDepth(request.getDepth());
             product.setShelfLifeDays(request.getShelfLifeDays());
+            if (request.getCurrentStock() != null) {
+                product.setCurrentStock(request.getCurrentStock());
+            }
             product.setIsActive(true);
             product.setIsSerialized(request.getIsSerialized() != null ? request.getIsSerialized() : false);
             product.setNotes(request.getNotes());
@@ -225,6 +228,12 @@ public class ProductController {
             productDetails.setQrCode(request.getQrCode());
             productDetails.setDescription(request.getDescription());
             productDetails.setUnit(request.getUnit());
+            if (request.getCurrentStock() != null) {
+                productDetails.setCurrentStock(request.getCurrentStock());
+            }
+            if (request.getShelfId() != null) {
+                productDetails.setShelfId(request.getShelfId());
+            }
             productDetails.setNetPurchasePrice(request.getNetPurchasePrice());
             productDetails.setGrossPurchasePrice(request.getGrossPurchasePrice());
             productDetails.setNetSellingPrice(request.getNetSellingPrice());
@@ -285,6 +294,35 @@ public class ProductController {
         }
     }
 
+    /**
+     * Adjust product quantity by delta (can be negative).
+     * POST /api/products/{id}/adjust
+     * Body: {"delta": 5}
+     */
+    @PostMapping("/{id}/adjust")
+    public ResponseEntity<Object> adjustProductQuantity(
+            @PathVariable Long id,
+            @RequestBody Map<String, Integer> payload) {
+        try {
+            Integer delta = payload != null ? payload.get("delta") : null;
+            if (delta == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "delta is required"));
+            }
+
+                Product updated = productService.adjustQuantity(id, delta);
+                String status = (updated.getCurrentStock() != null && updated.getCurrentStock() > 0) ? "Available" : "Reserved";
+            return ResponseEntity.ok(Map.of(
+                    "id", updated.getId(),
+                    "newQuantity", updated.getCurrentStock(),
+                    "status", status
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/{id}/qrcode")
     public ResponseEntity<byte[]> getProductQRCode(@PathVariable Long id) {
         try {
@@ -330,39 +368,44 @@ public class ProductController {
      * Product entitás konvertálása ProductResponse DTO-vá.
      */
     private ProductResponse convertToResponse(Product product) {
+        String status = (product.getCurrentStock() != null && product.getCurrentStock() > 0) ? "Available" : "Reserved";
+
         return new ProductResponse(
-                product.getId(),
-                product.getCompanyId(),
-                product.getCategoryId(),
-                product.getSupplierId(),
-                product.getName(),
-                product.getSku(),
-                product.getBarcode(),
-                product.getQrCode(),
-                product.getDescription(),
-                product.getUnit(),
-                product.getNetPurchasePrice(),
-                product.getGrossPurchasePrice(),
-                product.getNetSellingPrice(),
-                product.getGrossSellingPrice(),
-                product.getVatRate(),
-                product.getCurrency(),
-                product.getMinStockLevel(),
-                product.getOptimalStockLevel(),
-                product.getMaxStockLevel(),
-                product.getReorderPoint(),
-                product.getReorderQuantity(),
-                product.getWeight(),
-                product.getWidth(),
-                product.getHeight(),
-                product.getDepth(),
-                product.getShelfLifeDays(),
-                product.getIsActive(),
-                product.getIsSerialized(),
-                product.getNotes(),
-                product.getImageUrl(),
-                product.getCreatedAt(),
-                product.getUpdatedAt()
+            product.getId(),
+            product.getCompanyId(),
+            product.getCategoryId(),
+            product.getSupplierId(),
+            product.getShelfId(),
+            product.getName(),
+            product.getSku(),
+            product.getBarcode(),
+            product.getQrCode(),
+            product.getDescription(),
+            product.getUnit(),
+            product.getCurrentStock(),
+            status,
+            product.getNetPurchasePrice(),
+            product.getGrossPurchasePrice(),
+            product.getNetSellingPrice(),
+            product.getGrossSellingPrice(),
+            product.getVatRate(),
+            product.getCurrency(),
+            product.getMinStockLevel(),
+            product.getOptimalStockLevel(),
+            product.getMaxStockLevel(),
+            product.getReorderPoint(),
+            product.getReorderQuantity(),
+            product.getWeight(),
+            product.getWidth(),
+            product.getHeight(),
+            product.getDepth(),
+            product.getShelfLifeDays(),
+            product.getIsActive(),
+            product.getIsSerialized(),
+            product.getNotes(),
+            product.getImageUrl(),
+            product.getCreatedAt(),
+            product.getUpdatedAt()
         );
     }
 }

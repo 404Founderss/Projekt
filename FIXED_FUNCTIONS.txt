@@ -1,0 +1,92 @@
+  // Add an item to a shelf. Accepts optional `product` object.
+  const handleShelfAddItem = async (warehouseId, shelfId, product = null) => {
+    try {
+      console.log('handleShelfAddItem called - warehouseId:', warehouseId, 'shelfId:', shelfId);
+      
+      // Use selectedWarehouse since it has the loaded shelves with products
+      const warehouse = selectedWarehouse;
+      
+      if (!warehouse || String(warehouse.id) !== String(warehouseId)) {
+        console.error('Selected warehouse not found or mismatch');
+        alert('Warehouse not found');
+        return;
+      }
+
+      console.log('Warehouse shelves:', warehouse.shelves);
+
+      // Find the shelf by its display ID
+      let dbShelf = null;
+      
+      if (warehouse.shelves && warehouse.shelves.length > 0) {
+        dbShelf = warehouse.shelves.find(s => String(s.id) === String(shelfId));
+      }
+
+      console.log('Found dbShelf:', dbShelf);
+
+      if (!dbShelf) {
+        console.error('Shelf not found. Available shelves:', warehouse.shelves);
+        alert('Shelf not found. Please refresh the page and try again.');
+        return;
+      }
+
+      // The shelf.id from the database IS the database ID
+      const actualShelfId = dbShelf.id;
+      console.log('Using shelf database ID:', actualShelfId);
+
+      // Create the product
+      const prod = product || generateProducts(shelfId, 1)[0];
+      const productData = {
+        companyId: 1,
+        shelfId: actualShelfId,
+        name: prod.name,
+        sku: prod.sku,
+        unit: prod.unit || 'pcs',
+        currentStock: prod.quantity || 1,
+        description: `Added to shelf`,
+        currency: 'HUF'
+      };
+
+      console.log('Creating product:', productData);
+      await productService.create(productData);
+      
+      // Reload the warehouse details
+      await handleWarehouseClick(warehouse);
+      
+      alert('Product added successfully!');
+    } catch (error) {
+      console.error('Failed to add product:', error);
+      alert(`Failed to add product: ${error.response?.data?.error || error.message}`);
+    }
+  };
+
+  // Remove product(s) from a shelf
+  const handleShelfRemoveItem = async (warehouseId, shelfId, productIds = null) => {
+    try {
+      if (!productIds || productIds.length === 0) {
+        return;
+      }
+
+      const warehouse = selectedWarehouse;
+      if (!warehouse || String(warehouse.id) !== String(warehouseId)) {
+        console.error('Warehouse not found');
+        return;
+      }
+
+      // Delete products from the database
+      for (const productId of productIds) {
+        try {
+          await productService.delete(productId);
+        } catch (error) {
+          console.error(`Failed to delete product ${productId}:`, error);
+        }
+      }
+
+      // Reload the warehouse details
+      await handleWarehouseClick(warehouse);
+      
+      alert('Product(s) removed successfully!');
+    } catch (error) {
+      console.error('Failed to remove products:', error);
+      alert(`Failed to remove products: ${error.message}`);
+    }
+  };
