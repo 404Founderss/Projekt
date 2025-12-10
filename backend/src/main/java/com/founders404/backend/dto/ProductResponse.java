@@ -14,6 +14,7 @@ public class ProductResponse {
     private Long id;
     private Long companyId;
     private Long categoryId;
+    private String categoryName;
     private Long supplierId;
     private Long shelfId;
     private String name;

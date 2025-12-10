@@ -17,6 +17,9 @@ public class CreateProductRequest {
 
     private Long categoryId;
 
+    @Size(max = 200, message = "Category name must not exceed 200 characters")
+    private String categoryName;
+
     private Long supplierId;
 
     private Long shelfId;

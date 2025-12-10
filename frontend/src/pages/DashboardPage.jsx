@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { warehouseService } from '../services/warehouseService';
+import { productService } from '../services/productService';
 import {
   Box,
   Drawer,
@@ -21,8 +23,8 @@ import {
   useMediaQuery,
   useTheme as useMuiTheme,
   Menu,
-  MenuItem,
-  Chip
+  Chip,
+  CircularProgress
 } from '@mui/material';
 import { Grid } from '@mui/material';
 import {
@@ -33,45 +35,14 @@ import {
   BarChart as StatisticsIcon,
   Logout as LogoutIcon,
   Notifications as NotificationsIcon,
-  Menu as MenuIcon,
-  Info as InfoIcon,
-  Warning as WarningIcon,
-  CheckCircle as SuccessIcon
+  Menu as MenuIcon
 } from '@mui/icons-material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { green } from '@mui/material/colors';
 
-// Sample warehouse utilization data
-const warehouseStats = [
-  { id: 1, name: 'Central Warehouse', utilization: 75, stock: 7500, capacity: 10000, status: 'good' },
-  { id: 2, name: 'North Distribution Center', utilization: 80, stock: 12000, capacity: 15000, status: 'warning' },
-  { id: 3, name: 'South Storage Facility', utilization: 40, stock: 3200, capacity: 8000, status: 'good' },
-  { id: 4, name: 'East Regional Hub', utilization: 80, stock: 9600, capacity: 12000, status: 'warning' }
-];
-
-// Sample critical alerts
-const criticalAlerts = [
-  { id: 1, product: 'Widget XL', warehouse: 'Central Warehouse', stock: 45, threshold: 100, type: 'critical' },
-  { id: 2, product: 'Component Z', warehouse: 'North Distribution Center', stock: 78, threshold: 150, type: 'low' },
-  { id: 3, product: 'Tool Set Pro', warehouse: 'South Storage Facility', stock: 92, threshold: 120, type: 'low' }
-];
-
-// Sample activity log
-const activityLog = [
-  { id: 1, action: 'Added 500 units', product: 'Electronics Product', warehouse: 'Central Warehouse', time: '2 hours ago', type: 'add' },
-  { id: 2, action: 'Removed 120 units', product: 'Textiles Product', warehouse: 'North Distribution Center', time: '4 hours ago', type: 'remove' },
-  { id: 3, action: 'New warehouse created', product: 'East Regional Hub', warehouse: 'East Regional Hub', time: '1 day ago', type: 'create' },
-  { id: 4, action: 'Low stock alert', product: 'Tool Set Pro', warehouse: 'South Storage Facility', time: '2 days ago', type: 'alert' }
-];
-
 const getStatusColor = (status) => {
   const colors = { critical: 'error', low: 'warning', good: 'success', warning: 'warning' };
   return colors[status] || 'default';
-};
-
-const getActivityIcon = (type) => {
-  const icons = { add: '➕', remove: '➖', create: '🏢', alert: '⚠️' };
-  return icons[type] || '📋';
 };
 
 const drawerWidth = 260;
@@ -93,80 +64,8 @@ const theme = createTheme({
   },
 });
 
-
-// Sample notifications data
-const sampleNotifications = [
-  {
-    id: 1,
-    type: 'success',
-    title: 'Shipment Delivered',
-    message: 'Order #12345 has been successfully delivered to warehouse A',
-    timestamp: '5 minutes ago',
-    read: false
-  },
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Low Stock Alert',
-    message: 'Product SKU-001 in warehouse B is running low on stock',
-    timestamp: '1 hour ago',
-    read: false
-  },
-  {
-    id: 3,
-    type: 'info',
-    title: 'Warehouse Maintenance',
-    message: 'Scheduled maintenance for warehouse C on Nov 15, 2025',
-    timestamp: '2 hours ago',
-    read: true
-  },
-  {
-    id: 4,
-    type: 'warning',
-    title: 'Inventory Discrepancy',
-    message: 'Count mismatch detected in warehouse D - aisle B',
-    timestamp: '1 day ago',
-    read: true
-  },
-  {
-    id: 5,
-    type: 'success',
-    title: 'System Update Complete',
-    message: 'Warehouse management system updated to version 2.5.1',
-    timestamp: '3 days ago',
-    read: true
-  }
-];
-
 // Notification Menu Component
-const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'success':
-        return <SuccessIcon sx={{ color: 'success.main', fontSize: 24 }} />;
-      case 'warning':
-        return <WarningIcon sx={{ color: 'warning.main', fontSize: 24 }} />;
-      case 'info':
-        return <InfoIcon sx={{ color: 'info.main', fontSize: 24 }} />;
-      default:
-        return <InfoIcon sx={{ color: 'info.main', fontSize: 24 }} />;
-    }
-  };
-
-  const getNotificationColor = (type) => {
-    switch (type) {
-      case 'success':
-        return '#e8f5e9';
-      case 'warning':
-        return '#fff3e0';
-      case 'info':
-        return '#e3f2fd';
-      default:
-        return '#f5f5f5';
-    }
-  };
+const NotificationMenu = ({ open, anchorEl, onClose }) => {
 
   return (
     <Menu
@@ -197,7 +96,7 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
             Notifications
           </Typography>
           <Chip 
-            label={unreadCount} 
+            label={0} 
             size="small" 
             color="error"
             sx={{ fontWeight: 700 }}
@@ -207,83 +106,12 @@ const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
 
       {/* Notifications List */}
       <Box sx={{ maxHeight: 450, overflowY: 'auto' }}>
-        {notifications.length > 0 ? (
-          notifications.map((notification) => (
-            <MenuItem
-              key={notification.id}
-              onClick={onClose}
-              sx={{
-                p: 2,
-                borderBottom: '1px solid #f0f0f0',
-                bgcolor: notification.read ? '#fafafa' : getNotificationColor(notification.type),
-                '&:hover': {
-                  bgcolor: notification.read ? '#f5f5f5' : getNotificationColor(notification.type),
-                },
-                alignItems: 'flex-start',
-                minHeight: 'auto',
-                display: 'flex',
-                gap: 2
-              }}
-            >
-              <Box sx={{ flexShrink: 0, mt: 0.5 }}>
-                {getNotificationIcon(notification.type)}
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: notification.read ? 500 : 700,
-                      color: '#000',
-                    }}
-                  >
-                    {notification.title}
-                  </Typography>
-                  {!notification.read && (
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: 'error.main',
-                        flexShrink: 0,
-                        ml: 1,
-                        mt: 1
-                      }}
-                    />
-                  )}
-                </Box>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#666',
-                    display: 'block',
-                    mb: 0.5,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {notification.message}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#999',
-                    fontSize: '0.7rem',
-                  }}
-                >
-                  {notification.timestamp}
-                </Typography>
-              </Box>
-            </MenuItem>
-          ))
-        ) : (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <NotificationsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-            <Typography color="text.secondary">
-              No notifications yet
-            </Typography>
-          </Box>
-        )}
+        <Box sx={{ p: 4, textAlign: 'center' }}>
+          <NotificationsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+          <Typography color="text.secondary">
+            No notifications yet
+          </Typography>
+        </Box>
       </Box>
 
       {/* Footer */}
@@ -315,7 +143,112 @@ const DashboardPage = () => {
   const [selectedPage, setSelectedPage] = useState('Dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
-  const [notifications] = useState(sampleNotifications);
+  const [loading, setLoading] = useState(true);
+  const [warehouseStats, setWarehouseStats] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalWarehouses: 0,
+    totalStock: 0,
+    averageUtilization: 0,
+    alertCount: 0
+  });
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch warehouses and products in parallel so the cards use real DB data
+      const [warehousesResponse, productsResponse] = await Promise.all([
+        warehouseService.getAll(),
+        productService.getAll()
+      ]);
+
+      const warehouses = warehousesResponse.data || [];
+      const products = productsResponse.data || [];
+
+      // Map shelves to their warehouse for quick product-to-warehouse lookup
+      const shelfToWarehouse = new Map();
+      warehouses.forEach((warehouse) => {
+        (warehouse.shelves || []).forEach((shelf) => {
+          if (shelf && shelf.id) {
+            shelfToWarehouse.set(shelf.id, warehouse.id);
+          }
+        });
+      });
+
+      // Pre-aggregate product stock per warehouse from DB values
+      const warehouseStockMap = new Map();
+      products.forEach((product) => {
+        if (!product || !product.shelfId) return;
+        const warehouseId = shelfToWarehouse.get(product.shelfId);
+        if (!warehouseId) return;
+        const currentTotal = warehouseStockMap.get(warehouseId) || 0;
+        warehouseStockMap.set(warehouseId, currentTotal + (product.currentStock || 0));
+      });
+
+      let totalCapacity = 0;
+      let totalCurrentStock = 0;
+
+      const stats = warehouses.map((warehouse) => {
+        const shelves = (warehouse.shelves || []).filter((shelf) => shelf.type === 'shelf');
+
+        // Prefer shelf maxCapacity sum; fall back to warehouse.capacity if no shelves were defined
+        const shelfCapacity = shelves.reduce((sum, shelf) => sum + (shelf.maxCapacity || 0), 0);
+        const warehouseCapacity = shelfCapacity > 0 ? shelfCapacity : (warehouse.capacity || 0);
+
+        const warehouseStock = warehouseStockMap.get(warehouse.id) || 0;
+
+        totalCapacity += warehouseCapacity;
+        totalCurrentStock += warehouseStock;
+
+        const utilization = warehouseCapacity > 0
+          ? Math.round((warehouseStock / warehouseCapacity) * 100)
+          : 0;
+
+        let status = 'good';
+        if (utilization >= 90) {
+          status = 'critical';
+        } else if (utilization >= 70) {
+          status = 'warning';
+        }
+
+        return {
+          id: warehouse.id,
+          name: warehouse.name,
+          utilization,
+          stock: warehouseStock,
+          capacity: warehouseCapacity,
+          status
+        };
+      });
+
+      const averageUtilization = totalCapacity > 0
+        ? Math.round((totalCurrentStock / totalCapacity) * 100)
+        : 0;
+
+      setWarehouseStats(stats);
+      setDashboardStats({
+        totalWarehouses: warehouses.length,
+        totalStock: totalCurrentStock,
+        averageUtilization,
+        alertCount: 0 // Can be expanded to fetch real alerts
+      });
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+      setWarehouseStats([]);
+      setDashboardStats({
+        totalWarehouses: 0,
+        totalStock: 0,
+        averageUtilization: 0,
+        alertCount: 0
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -481,7 +414,7 @@ const DashboardPage = () => {
               },
             }}
           >
-            <Badge badgeContent={notifications.filter(n => !n.read).length} color="error">
+            <Badge badgeContent={0} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
@@ -498,7 +431,7 @@ const DashboardPage = () => {
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{
-            keepMounted: true, // Better open performance on mobile
+            keepMounted: true,
           }}
           sx={{
             display: { xs: 'block', md: 'none' },
@@ -564,118 +497,85 @@ const DashboardPage = () => {
           Welcome, <span style={{ fontWeight: 600, color: '#1b5e20' }}>{user ? user.username : 'Guest'}</span>! Here's your warehouse overview.
         </Typography>
 
-        {/* Dashboard Widgets */}
-        <Grid container spacing={3} sx={{ mt: 1 }}>
-          
-          {/* Row 1: Quick Stats Overview */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper sx={{ p: 2.5, borderRadius: 3, background: 'linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%)', color: 'white' }}>
-              <Typography variant="caption" sx={{ opacity: 0.9 }}>Total Warehouses</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>4</Typography>
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>All operational</Typography>
-            </Paper>
-          </Grid>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            {/* Dashboard Widgets */}
+            <Grid container spacing={3} sx={{ mt: 1 }}>
+              
+              {/* Row 1: Quick Stats Overview */}
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper sx={{ p: 2.5, borderRadius: 3, background: 'linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%)', color: 'white' }}>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>Total Warehouses</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>{dashboardStats.totalWarehouses}</Typography>
+                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>All operational</Typography>
+                </Paper>
+              </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper sx={{ p: 2.5, borderRadius: 3, background: 'linear-gradient(135deg, #0288d1 0%, #0097a7 100%)', color: 'white' }}>
-              <Typography variant="caption" sx={{ opacity: 0.9 }}>Total Stock</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>32.3K</Typography>
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>Units in all warehouses</Typography>
-            </Paper>
-          </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper sx={{ p: 2.5, borderRadius: 3, background: 'linear-gradient(135deg, #0288d1 0%, #0097a7 100%)', color: 'white' }}>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>Total Stock</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>{dashboardStats.totalStock.toLocaleString()}</Typography>
+                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>Units in all warehouses</Typography>
+                </Paper>
+              </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper sx={{ p: 2.5, borderRadius: 3, background: 'linear-gradient(135deg, #f57c00 0%, #e65100 100%)', color: 'white' }}>
-              <Typography variant="caption" sx={{ opacity: 0.9 }}>Avg Utilization</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>69%</Typography>
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>Capacity used</Typography>
-            </Paper>
-          </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper sx={{ p: 2.5, borderRadius: 3, background: 'linear-gradient(135deg, #f57c00 0%, #e65100 100%)', color: 'white' }}>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>Avg Utilization</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>{dashboardStats.averageUtilization}%</Typography>
+                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>Capacity used</Typography>
+                </Paper>
+              </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper sx={{ p: 2.5, borderRadius: 3, background: 'linear-gradient(135deg, #d32f2f 0%, #c62828 100%)', color: 'white' }}>
-              <Typography variant="caption" sx={{ opacity: 0.9 }}>Critical Alerts</Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>{criticalAlerts.length}</Typography>
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>Require attention</Typography>
-            </Paper>
-          </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Paper sx={{ p: 2.5, borderRadius: 3, background: 'linear-gradient(135deg, #d32f2f 0%, #c62828 100%)', color: 'white' }}>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>Critical Alerts</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 700, mt: 1 }}>{dashboardStats.alertCount}</Typography>
+                  <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>Require attention</Typography>
+                </Paper>
+              </Grid>
 
-          {/* Row 2: Warehouse Utilization Cards */}
-          <Grid item xs={12}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>Warehouse Utilization</Typography>
-            </Box>
-            <Grid container spacing={2}>
-              {warehouseStats.map((wh) => (
-                <Grid item xs={12} sm={6} lg={3} key={wh.id}>
-                  <Paper sx={{ p: 2, borderRadius: 3, height: '100%' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>{wh.name}</Typography>
-                      <Chip label={`${wh.utilization}%`} color={getStatusColor(wh.status)} size="small" sx={{ fontWeight: 600, flexShrink: 0, ml: 1 }} />
-                    </Box>
-                    <Box sx={{ bgcolor: 'grey.100', borderRadius: 1, height: 6, mb: 2, overflow: 'hidden' }}>
-                      <Box sx={{ bgcolor: wh.status === 'warning' ? 'warning.main' : 'success.main', height: '100%', width: `${wh.utilization}%` }} />
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      {wh.stock.toLocaleString()} / {wh.capacity.toLocaleString()} units
-                    </Typography>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
-          </Grid>
-
-          {/* Row 3: Critical Alerts */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>⚠️ Critical Alerts</Typography>
-              {criticalAlerts.length > 0 ? (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {criticalAlerts.map((alert) => (
-                    <Paper key={alert.id} sx={{ p: 1.5, bgcolor: 'grey.50', borderLeft: `4px solid ${alert.type === 'critical' ? '#d32f2f' : '#f57c00'}` }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                        <Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{alert.product}</Typography>
-                          <Typography variant="caption" color="text.secondary">{alert.warehouse}</Typography>
-                        </Box>
-                        <Chip label={`${alert.stock} units`} color={getStatusColor(alert.type)} size="small" sx={{ fontWeight: 600 }} />
-                      </Box>
-                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}>
-                        Min threshold: {alert.threshold} units
-                      </Typography>
-                    </Paper>
-                  ))}
+              {/* Row 2: Warehouse Utilization Cards */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>Warehouse Utilization</Typography>
                 </Box>
-              ) : (
-                <Typography color="text.secondary">No critical alerts</Typography>
-              )}
-            </Paper>
-          </Grid>
+                {warehouseStats.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {warehouseStats.map((wh) => (
+                      <Grid item xs={12} sm={6} lg={3} key={wh.id}>
+                        <Paper sx={{ p: 2, borderRadius: 3, height: '100%' }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>{wh.name}</Typography>
+                            <Chip label={`${wh.utilization}%`} color={getStatusColor(wh.status)} size="small" sx={{ fontWeight: 600, flexShrink: 0, ml: 1 }} />
+                          </Box>
+                          <Box sx={{ bgcolor: 'grey.100', borderRadius: 1, height: 6, mb: 2, overflow: 'hidden' }}>
+                            <Box sx={{ bgcolor: wh.status === 'warning' ? 'warning.main' : 'success.main', height: '100%', width: `${wh.utilization}%` }} />
+                          </Box>
+                          <Typography variant="caption" color="text.secondary">
+                            {wh.stock.toLocaleString()} / {wh.capacity.toLocaleString()} units
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Paper sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography color="text.secondary">No warehouses available. Create one to get started!</Typography>
+                  </Paper>
+                )}
+              </Grid>
 
-          {/* Row 3: Recent Activity */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>📋 Recent Activity</Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {activityLog.slice(0, 4).map((activity) => (
-                  <Box key={activity.id} sx={{ display: 'flex', gap: 1.5, p: 1, borderRadius: 1, bgcolor: 'grey.50', alignItems: 'flex-start' }}>
-                    <Typography sx={{ fontSize: '1.25rem' }}>{getActivityIcon(activity.type)}</Typography>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{activity.action}</Typography>
-                      <Typography variant="caption" color="text.secondary">{activity.product}</Typography>
-                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mt: 0.25 }}>{activity.time}</Typography>
-                    </Box>
-                  </Box>
-                ))}
-              </Box>
-            </Paper>
-          </Grid>
-
-        </Grid>
+            </Grid>
+          </>
+        )}
 
         {/* Notification Menu */}
         <NotificationMenu 
-          notifications={notifications}
           open={Boolean(notificationAnchorEl)}
           anchorEl={notificationAnchorEl}
           onClose={handleNotificationClose}

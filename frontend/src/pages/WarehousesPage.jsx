@@ -383,7 +383,7 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
         // keep UI-friendly fields available
         quantity: p.quantity ?? p.currentStock ?? 0,
         unit: p.unit || 'pcs',
-        category: p.category || p.description || p.categoryId || 'General',
+        category: p.categoryName || 'Uncategorized',
         status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
       }));
       console.log('Loaded products for shelf', shelfIdToUse, normalized);
@@ -404,7 +404,7 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
           ...p,
           quantity: p.quantity ?? p.currentStock ?? 0,
           unit: p.unit || 'pcs',
-          category: p.category || p.description || p.categoryId || 'General',
+          category: p.categoryName || 'Uncategorized',
           status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
         }));
         setProducts(normalized);
@@ -1628,7 +1628,7 @@ const WarehousesPage = () => {
                 ...p,
                 quantity: p.quantity ?? p.currentStock ?? 0,
                 unit: p.unit || 'pcs',
-                category: p.category || p.description || p.categoryId || 'General',
+                category: p.categoryName || 'Uncategorized',
                 status: p.status || ((p.currentStock ?? p.quantity ?? 0) > 0 ? 'Available' : 'Reserved'),
               }));
               return {
@@ -1833,7 +1833,8 @@ const WarehousesPage = () => {
         name: prod.name,
         unit: prod.unit || 'pcs',
         currentStock: prod.quantity || 1,
-        description: prod.category || 'Added to shelf',
+        categoryName: prod.category || 'General',
+        description: prod.description || '',
         currency: 'HUF'
       };
 
