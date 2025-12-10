@@ -295,7 +295,6 @@ const ProfilePage = () => {
   const [formData, setFormData] = useState({
     username: user?.username || '',
     email: user?.email || '',
-    phone: user?.phone || '',
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -682,27 +681,6 @@ const ProfilePage = () => {
               <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
                 {user ? user.username : 'Current User'}
               </Typography>
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<PhotoCameraIcon />}
-                sx={{
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  '&:hover': {
-                    borderColor: 'primary.dark',
-                    bgcolor: 'rgba(46, 125, 50, 0.04)'
-                  }
-                }}
-              >
-                Change Profile Picture
-                <input
-                  type="file"
-                  hidden
-                  accept="image/*"
-                  onChange={handleProfilePictureChange}
-                />
-              </Button>
             </Box>
           </Box>
         </Paper>
@@ -737,15 +715,6 @@ const ProfilePage = () => {
                     name="email"
                     type="email"
                     value={formData.email}
-                    onChange={handleInputChange}
-                    variant="outlined"
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Phone number"
-                    name="phone"
-                    value={formData.phone}
                     onChange={handleInputChange}
                     variant="outlined"
                   />

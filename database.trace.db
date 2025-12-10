@@ -1,0 +1,9 @@
+2025-12-10 08:28:44.831142+01:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * FROM CATEGORIES PERSONS [*]USERS"; SQL statement:
+SELECT * FROM CATEGORIES PERSONS USERS [42000-232]
+2025-12-10 08:36:20.978383+01:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "USERSCATEGORIES" not found; SQL statement:
+SELECT * FROM USERSCATEGORIES [42102-232]
+2025-12-10 08:38:11.372414+01:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * FROM SHELVES SHELVES [*]USERS"; SQL statement:
+SELECT * FROM SHELVES SHELVES USERS [42000-232]

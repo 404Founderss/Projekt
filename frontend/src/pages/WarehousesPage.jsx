@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { warehouseService } from '../services/warehouseService';
@@ -301,7 +301,7 @@ const generateProducts = (shelfId, count) => {
 };
 
 // Sample warehouse data with shelf information
-const warehousesData = [
+const sampleWarehousesData = [
   {
     id: 1,
     name: 'Central Warehouse',
@@ -440,19 +440,7 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
   const [products, setProducts] = useState([]);
 
   // Load products when shelf changes or popover opens
-  useEffect(() => {
-    if (open && shelf && shelf.id) {
-      // If products are already loaded in shelf object, use them
-      if (shelf.products && shelf.products.length > 0) {
-        setProducts(shelf.products);
-      } else {
-        // Otherwise, fetch products from API
-        loadShelfProducts();
-      }
-    }
-  }, [open, shelf]);
-
-  const loadShelfProducts = async () => {
+  const loadShelfProducts = useCallback(async () => {
     if (!shelf || !shelf.id) return;
 
     try {
@@ -465,7 +453,19 @@ const ShelfItemsPopover = ({ open, anchorEl, shelf, warehouseName, warehouseId, 
     } finally {
       setLoadingProducts(false);
     }
-  };
+  }, [shelf]);
+
+  useEffect(() => {
+    if (open && shelf && shelf.id) {
+      // If products are already loaded in shelf object, use them
+      if (shelf.products && shelf.products.length > 0) {
+        setProducts(shelf.products);
+      } else {
+        // Otherwise, fetch products from API
+        loadShelfProducts();
+      }
+    }
+  }, [open, shelf, loadShelfProducts]);
 
   const filteredProducts = useMemo(() => {
     if (!products || products.length === 0) return [];
@@ -1089,45 +1089,7 @@ const WarehouseVisualModal = ({ open, onClose, warehouse, onShelfAddItem, onShel
     setProductModalOpen(true);
   };
 
-  const handleShelfAddItem = async (warehouseId, shelfId, product) => {
-    try {
-      // Call backend API to add product to shelf
-      // CreateProductRequest requires: companyId (required), name (required)
-      // Note: shelfId from visual editor is a string (shape ID), not a DB Long ID
-      // We'll set shelfId to null for now, until shelves are created as entities
-      await productService.create({
-        companyId: 1, // TODO: Get from current user's company
-        shelfId: null, // Set to null since we don't have real shelf entities yet
-        name: product.name,
-        sku: product.sku,
-        unit: product.unit || 'pcs',
-        description: `Product added to visual shelf ${shelfId} in warehouse ${warehouseId}`,
-        minStockLevel: 0,
-        optimalStockLevel: Math.floor(product.quantity * 1.5),
-        maxStockLevel: Math.floor(product.quantity * 2)
-      });
-
-      // Refresh data
-      if (onRefresh) onRefresh();
-      alert('Product added successfully!');
-    } catch (error) {
-      console.error('Error adding product to shelf:', error);
-      alert('Failed to add product: ' + (error.response?.data?.message || error.message));
-    }
-  };
-
-  const handleShelfRemoveItem = async (warehouseId, shelfId, productIds) => {
-    try {
-      // Call backend API to remove products from shelf
-      await Promise.all(productIds.map(id => productService.delete(id)));
-
-      // Refresh data
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      console.error('Error removing products from shelf:', error);
-      alert('Failed to remove products: ' + (error.response?.data?.message || error.message));
-    }
-  };
+  
 
   if (!warehouse) return null;
 
@@ -1527,7 +1489,7 @@ const WarehousesPage = () => {
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
   const [savedWarehousesState, setSavedWarehousesState] = useState(() => loadSavedWarehouses());
   // Keep an editable copy of the built-in/sample warehouses so shelves can be updated in-memory
-  const [sampleWarehousesState, setSampleWarehousesState] = useState(() => warehousesData.map(w => ({
+  const [sampleWarehousesState, setSampleWarehousesState] = useState(() => sampleWarehousesData.map(w => ({
     ...w,
     shelves: (w.shelves || []).map(s => ({ ...s, products: Array.isArray(s.products) ? [...s.products] : [] }))
   })));
@@ -1775,7 +1737,7 @@ const WarehousesPage = () => {
   ];
 
   // Combine saved warehouses with editable sample data and calculate summary statistics
-  const allWarehousesData = [...savedWarehousesState, ...sampleWarehousesState];
+  const allWarehousesData = [...savedWarehousesState, ...warehousesData, ...sampleWarehousesState];
   const totalWarehouses = allWarehousesData.length;
   const totalCapacity = allWarehousesData.reduce((sum, wh) => sum + (wh.capacity || 0), 0);
   const totalStock = allWarehousesData.reduce((sum, wh) => sum + (wh.currentStock || 0), 0);
@@ -2185,10 +2147,8 @@ const WarehousesPage = () => {
                   </Card>
                 </Grid>
               );
-            })
-              )}
-            </Grid>
-          )}
+            })}
+          </Grid>
 
         </Box>
       </Box>
