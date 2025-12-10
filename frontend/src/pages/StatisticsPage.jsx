@@ -27,6 +27,7 @@ import { statisticsService } from '../services/statisticsService';
 import { inventoryService } from '../services/inventoryService';
 import { productService } from '../services/productService';
 import { warehouseService } from '../services/warehouseService';
+import { notificationService } from '../services/notificationService';
 
 // Theme Configuration
 const theme = createTheme({
@@ -41,7 +42,7 @@ const drawerWidth = 260;
 
 // --- NOTIFICATION MENU COMPONENT (Added) ---
 const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -177,9 +178,9 @@ const StatisticsPage = () => {
   const [salesData, setSalesData] = useState([]);
   const [animationKey, setAnimationKey] = useState(0);
 
-  // --- NOTIFICATION STATE (Added) ---
+  // --- NOTIFICATION STATE ---
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
-  const [notifications] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     const loadStats = async () => {
@@ -238,7 +239,19 @@ const StatisticsPage = () => {
         });
 
         const activeProducts = products.filter(p => p.isActive !== false).length;
-        const lowStockAlerts = lowStock.length;
+
+        // Fetch notifications from backend
+        let lowStockAlerts = 0;
+        try {
+          const notificationsResponse = await notificationService.getUnread();
+          const apiNotifications = notificationsResponse.data || [];
+          setNotifications(apiNotifications);
+          lowStockAlerts = apiNotifications.length;
+        } catch (error) {
+          console.error('Failed to load notifications:', error);
+          setNotifications([]);
+          lowStockAlerts = 0;
+        }
         
         // Calculate total sales from all selling products
         let totalSalesQty = 0;
@@ -248,18 +261,29 @@ const StatisticsPage = () => {
           totalSalesQty = Number(turnover.totalGoodsSold);
         }
 
+        // Create a map of shelf IDs to warehouse names
+        const shelfToWarehouseMap = new Map();
+        (warehouses || []).forEach((warehouse) => {
+          (warehouse.shelves || []).forEach((shelf) => {
+            if (shelf && shelf.id) {
+              shelfToWarehouseMap.set(shelf.id, warehouse.name);
+            }
+          });
+        });
+
         const sortedHighStock = [...products]
           .sort((a, b) => (b.currentStock || 0) - (a.currentStock || 0))
           .slice(0, 5)
           .map((p) => {
             const capacity = p.maxStockLevel || p.optimalStockLevel || 0;
             const percent = capacity > 0 ? Math.round(((p.currentStock || 0) / capacity) * 100) : 0;
+            const warehouseName = p.shelfId ? shelfToWarehouseMap.get(p.shelfId) : null;
             return {
               name: p.name,
               stock: p.currentStock || 0,
               capacity,
               percent,
-              warehouse: p.warehouseName || 'N/A'
+              warehouse: warehouseName || p.warehouseName || 'N/A'
             };
           });
 
@@ -342,9 +366,14 @@ const StatisticsPage = () => {
 
         console.log('Sales trend data:', salesTrend);
 
+        // Get the 5 products with lowest stock
+        const lowestStockProducts = [...products]
+          .sort((a, b) => (a.currentStock ?? 0) - (b.currentStock ?? 0))
+          .slice(0, 5);
+
         setMetrics({ totalSalesQty, activeProducts, lowStockAlerts });
         setTopSellers(topSellerRows);
-        setLowStockProducts(lowStock);
+        setLowStockProducts(lowestStockProducts);
         setHighStockProducts(sortedHighStock);
         setCategoryData(categoryRows);
         setWarehouseData(warehouseRows);
@@ -687,7 +716,6 @@ const StatisticsPage = () => {
                       <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>Quantity Sold</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Trend</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -695,9 +723,6 @@ const StatisticsPage = () => {
                         <TableRow key={i}>
                           <TableCell>{p.name}</TableCell>
                           <TableCell align="right">{p.sales.toLocaleString()}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={p.sku || 'SKU'} color="success" size="small" sx={{ fontWeight: 600 }} />
-                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -719,22 +744,14 @@ const StatisticsPage = () => {
                       <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>Stock</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Min</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 600 }}>Status</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {lowStockProducts.map((p) => {
-                        const status = 'critical';
                         return (
                           <TableRow key={p.id}>
                             <TableCell>{p.name}</TableCell>
                             <TableCell align="right">{(p.currentStock || 0).toLocaleString()}</TableCell>
-                            <TableCell align="right">{p.minStockLevel || '-'}</TableCell>
-                            <TableCell align="center">
-                              <Chip label={status.toUpperCase()} color={getStatusColor(status)} 
-                                    size="small" sx={{ fontWeight: 600 }} />
-                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -757,8 +774,6 @@ const StatisticsPage = () => {
                       <TableRow>
                         <TableCell sx={{ fontWeight: 600 }}>Product</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 600 }}>Current Stock</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Capacity</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 600 }}>Utilization</TableCell>
                         <TableCell align="center" sx={{ fontWeight: 600 }}>Warehouse</TableCell>
                       </TableRow>
                     </TableHead>
@@ -767,11 +782,6 @@ const StatisticsPage = () => {
                         <TableRow key={i}>
                           <TableCell>{p.name}</TableCell>
                           <TableCell align="right">{(p.stock || 0).toLocaleString()}</TableCell>
-                          <TableCell align="right">{p.capacity ? p.capacity.toLocaleString() : '-'}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={`${p.percent}%`} color={p.percent >= 85 ? 'warning' : 'success'} 
-                                  size="small" sx={{ fontWeight: 600 }} />
-                          </TableCell>
                           <TableCell align="center">{p.warehouse}</TableCell>
                         </TableRow>
                       ))}

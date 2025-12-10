@@ -3,6 +3,8 @@ import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { warehouseService } from '../services/warehouseService';
 import { productService } from '../services/productService';
+import { inventoryService } from '../services/inventoryService';
+import { notificationService } from '../services/notificationService';
 import {
   Box,
   Drawer,
@@ -65,7 +67,8 @@ const theme = createTheme({
 });
 
 // Notification Menu Component
-const NotificationMenu = ({ open, anchorEl, onClose }) => {
+const NotificationMenu = ({ open, anchorEl, onClose, notifications }) => {
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <Menu
@@ -96,7 +99,7 @@ const NotificationMenu = ({ open, anchorEl, onClose }) => {
             Notifications
           </Typography>
           <Chip 
-            label={0} 
+            label={unreadCount} 
             size="small" 
             color="error"
             sx={{ fontWeight: 700 }}
@@ -106,29 +109,30 @@ const NotificationMenu = ({ open, anchorEl, onClose }) => {
 
       {/* Notifications List */}
       <Box sx={{ maxHeight: 450, overflowY: 'auto' }}>
-        <Box sx={{ p: 4, textAlign: 'center' }}>
-          <NotificationsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-          <Typography color="text.secondary">
-            No notifications yet
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* Footer */}
-      <Box sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa', textAlign: 'center' }}>
-        <Typography
-          variant="body2"
-          sx={{
-            color: 'primary.main',
-            fontWeight: 600,
-            cursor: 'pointer',
-            '&:hover': {
-              textDecoration: 'underline',
-            }
-          }}
-        >
-          View All Notifications
-        </Typography>
+        {notifications.length > 0 ? (
+          <List>
+            {notifications.map((n) => (
+              <ListItem key={n.id} alignItems="flex-start" sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                <ListItemText
+                  primary={n.title}
+                  secondary={
+                    <>
+                      <Typography variant="body2" color="text.primary">{n.message}</Typography>
+                      <Typography variant="caption" color="text.secondary">{n.timestamp}</Typography>
+                    </>
+                  }
+                />
+              </ListItem>
+            ))}
+          </List>
+        ) : (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <NotificationsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+            <Typography color="text.secondary">
+              No notifications yet
+            </Typography>
+          </Box>
+        )}
       </Box>
     </Menu>
   );
@@ -151,6 +155,7 @@ const DashboardPage = () => {
     averageUtilization: 0,
     alertCount: 0
   });
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -160,14 +165,16 @@ const DashboardPage = () => {
     try {
       setLoading(true);
       
-      // Fetch warehouses and products in parallel so the cards use real DB data
-      const [warehousesResponse, productsResponse] = await Promise.all([
+      // Fetch warehouses, products, and low-stock list in parallel so the cards use real DB data
+      const [warehousesResponse, productsResponse, lowStockResponse] = await Promise.all([
         warehouseService.getAll(),
-        productService.getAll()
+        productService.getAll(),
+        inventoryService.getLowStock()
       ]);
 
       const warehouses = warehousesResponse.data || [];
       const products = productsResponse.data || [];
+      const lowStock = lowStockResponse.data || [];
 
       // Map shelves to their warehouse for quick product-to-warehouse lookup
       const shelfToWarehouse = new Map();
@@ -230,12 +237,29 @@ const DashboardPage = () => {
         : 0;
 
       setWarehouseStats(stats);
-      setDashboardStats({
-        totalWarehouses: warehouses.length,
-        totalStock: totalCurrentStock,
-        averageUtilization,
-        alertCount: 0 // Can be expanded to fetch real alerts
-      });
+
+      // Fetch notifications from backend
+      try {
+        const notificationsResponse = await notificationService.getUnread();
+        const apiNotifications = notificationsResponse.data || [];
+        setNotifications(apiNotifications);
+
+        setDashboardStats({
+          totalWarehouses: warehouses.length,
+          totalStock: totalCurrentStock,
+          averageUtilization,
+          alertCount: apiNotifications.length
+        });
+      } catch (error) {
+        console.error('Failed to load notifications:', error);
+        setNotifications([]);
+        setDashboardStats({
+          totalWarehouses: warehouses.length,
+          totalStock: totalCurrentStock,
+          averageUtilization,
+          alertCount: 0
+        });
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       setWarehouseStats([]);
@@ -256,6 +280,13 @@ const DashboardPage = () => {
 
   const handleNotificationClick = (event) => {
     setNotificationAnchorEl(event.currentTarget);
+    // Mark all notifications as read in the backend
+    notificationService.markAllAsRead()
+      .then(() => {
+        // Update local state to reflect that all are read
+        setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      })
+      .catch(error => console.error('Failed to mark notifications as read:', error));
   };
 
   const handleNotificationClose = () => {
@@ -414,7 +445,7 @@ const DashboardPage = () => {
               },
             }}
           >
-            <Badge badgeContent={0} color="error">
+            <Badge badgeContent={notifications.filter(n => !n.read).length} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
@@ -579,6 +610,7 @@ const DashboardPage = () => {
           open={Boolean(notificationAnchorEl)}
           anchorEl={notificationAnchorEl}
           onClose={handleNotificationClose}
+          notifications={notifications}
         />
         
       </Box>

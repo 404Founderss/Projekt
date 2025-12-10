@@ -3,6 +3,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { warehouseService } from '../services/warehouseService';
+import { inventoryService } from '../services/inventoryService';
+import { productService } from '../services/productService';
+import { notificationService } from '../services/notificationService';
 import {
   Box, Drawer, AppBar, Toolbar, List, ListItem, ListItemButton,
   ListItemIcon, ListItemText, Typography, IconButton, Avatar,
@@ -35,37 +38,11 @@ const theme = createTheme({
   typography: { fontFamily: 'Roboto, sans-serif' },
 });
 
-// --- SAMPLE NOTIFICATIONS DATA ---
-const sampleNotifications = [
-  {
-    id: 1,
-    type: 'success',
-    title: 'Shipment Delivered',
-    message: 'Order #12345 has been successfully delivered to warehouse A',
-    timestamp: '5 minutes ago',
-    read: false
-  },
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Low Stock Alert',
-    message: 'Product SKU-001 in warehouse B is running low on stock',
-    timestamp: '1 hour ago',
-    read: false
-  },
-  {
-    id: 3,
-    type: 'info',
-    title: 'Warehouse Maintenance',
-    message: 'Scheduled maintenance for warehouse C on Nov 15, 2025',
-    timestamp: '2 hours ago',
-    read: true
-  }
-];
+
 
 // --- NOTIFICATION MENU COMPONENT ---
 const NotificationMenu = ({ notifications, open, anchorEl, onClose }) => {
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -223,7 +200,7 @@ const NewWarehousePage = () => {
   
   // Notification State
   const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
-  const [notifications] = useState(sampleNotifications);
+  const [notifications, setNotifications] = useState([]);
 
   const stageContainerRef = useRef(null);
   const stageRef = useRef(null);
@@ -245,6 +222,22 @@ const NewWarehousePage = () => {
     observer.observe(container);
     return () => observer.unobserve(container);
   }, []);
+
+  // Load notifications
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const notificationsResponse = await notificationService.getUnread();
+      const apiNotifications = notificationsResponse.data || [];
+      setNotifications(apiNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      setNotifications([]);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -442,7 +435,7 @@ const NewWarehousePage = () => {
               color: 'secondary.main', 
               '&:hover': { backgroundColor: 'primary.dark' } 
             }}>
-            <Badge badgeContent={notifications.filter(n => !n.read).length} color="error">
+            <Badge badgeContent={notifications.filter(n => !n.isRead).length} color="error">
               <NotificationsIcon />
             </Badge>
           </IconButton>
