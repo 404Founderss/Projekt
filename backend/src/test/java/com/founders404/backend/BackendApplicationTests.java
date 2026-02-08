@@ -14,10 +14,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Backend alkalmazás teljes teszt suite.
- * Minden teszt külön metódusban jelenik meg.
- */
 class BackendApplicationTests {
 
     // Mock repository-k
